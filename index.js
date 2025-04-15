@@ -8,6 +8,9 @@ import { CacheManager } from './cache.js';
 const app = express();
 const cache = new CacheManager();
 
+// 환경 변수 설정
+const CLOUD_RUN_TOKEN = process.env.CLOUD_RUN_TOKEN || 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCVkbqg5jrjvja9O96w2BKHlJQoqzsNGscmrhweCFKvrSyjMmiEu5OZ4/ZNjEx/69HVw6ZbpYfXo1bYuynlPFE+I1eTThe8ukY6MtCoak6cR1JcA59KrsGkGBWTJNSWkb/qMQACyl21OITqPmqcXbx/SreAonecrSca49qyi2mtSQA0MsHghIleol3kDwtvFUUmGTR3Bfb9TdC6IHQKJpSRALjrRms6PiG4vT7PyKDY9sm8rFmT+Ruz+ikCbHHYYb9mqgazVQsEgW3AZhAIE5wKOutNmhFd6qOUnrKvSq9vAYigTdMBkLuOV5OVfnSGP4HArQF1oVhCV6ElUYNQs/9';
+
 // CORS 미들웨어 설정
 app.use((req, res, next) => {
   res.set({
@@ -44,7 +47,7 @@ app.use((req, res, next) => {
   // 토큰 검증 로직
   try {
     // 임시로 단순 비교만 수행
-    if (token !== process.env.CLOUD_RUN_TOKEN) {
+    if (token !== CLOUD_RUN_TOKEN) {
       return res.status(401).json({ error: '유효하지 않은 토큰입니다.' });
     }
     next();
