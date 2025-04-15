@@ -8,13 +8,27 @@ import { CacheManager } from './cache.js';
 const app = express();
 const cache = new CacheManager();
 
+// CORS 미들웨어 설정
+app.use((req, res, next) => {
+  res.set({
+    'Access-Control-Allow-Origin': 'http://localhost:5173',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true'
+  });
+
+  // OPTIONS 요청 처리
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+  next();
+});
+
 // 개별 조회 (/places)는 기존 방식대로 id 기반 조회를 유지할 수 있습니다.
 // 이제 서버 측 검색을 위한 새로운 엔드포인트를 추가합니다.
 
 app.get('/searchPlaces', async (req, res) => {
   try {
-    res.set('Access-Control-Allow-Origin', '*');
-    
     const query = req.query.query?.toLowerCase();
     if (!query || query.trim().length === 0) {
       return res.status(400).json({ error: '검색어(query 파라미터)가 필요합니다.' });
@@ -50,8 +64,6 @@ app.get('/searchPlaces', async (req, res) => {
 // id 파라미터가 없으면 에러를 반환합니다.
 app.get('/places', async (req, res) => {
   try {
-    res.set('Access-Control-Allow-Origin', '*');
-
     const id = req.query.id;
     if (!id) {
       return res.status(400).json({ error: '관광지 개별 조회를 위해 id 파라미터가 필요합니다.' });
@@ -94,8 +106,6 @@ app.get('/places', async (req, res) => {
 // /frequentPlaces 엔드포인트는 단순히 자주 호출되는 관광지 목록을 반환합니다.
 app.get('/frequentPlaces', async (req, res) => {
   try {
-    res.set('Access-Control-Allow-Origin', '*');
-
     const frequentPlaces = await getFrequentPlaces();
     const enrichedList = frequentPlaces.map(attachDynamicFields);
     res.status(200).json(enrichedList);
