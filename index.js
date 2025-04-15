@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'fs';
 import { readJSON } from './fileUtils.js';
 import { updateFrequency } from './frequencyManager.js';
 import { updateFrequentPlaces } from './frequentUpdater.js';
