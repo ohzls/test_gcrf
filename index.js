@@ -24,6 +24,36 @@ app.use((req, res, next) => {
   next();
 });
 
+// 토큰 검증 미들웨어
+app.use((req, res, next) => {
+  // OPTIONS 요청은 검증하지 않음
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: '인증 토큰이 필요합니다.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: '유효하지 않은 토큰 형식입니다.' });
+  }
+
+  // 토큰 검증 로직
+  try {
+    // 임시로 단순 비교만 수행
+    if (token !== process.env.CLOUD_RUN_TOKEN) {
+      return res.status(401).json({ error: '유효하지 않은 토큰입니다.' });
+    }
+    next();
+  } catch (error) {
+    console.error('Token verification error:', error);
+    return res.status(401).json({ error: '토큰 검증 중 오류가 발생했습니다.' });
+  }
+});
+
 // 개별 조회 (/places)는 기존 방식대로 id 기반 조회를 유지할 수 있습니다.
 // 이제 서버 측 검색을 위한 새로운 엔드포인트를 추가합니다.
 
