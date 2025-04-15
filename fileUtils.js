@@ -1,29 +1,66 @@
 // fileUtils.js
 
-import fs from 'fs';
+import { Storage } from '@google-cloud/storage';
+import { fileURLToPath } from 'url';
 import path from 'path';
+import { attachDynamicFields } from './generateData.js';
 
-function readJSON(filename) {
-  const filePath = path.join(__dirname, filename);
-  if (!fs.existsSync(filePath)) return {};
-  const data = fs.readFileSync(filePath, 'utf8');
-  return JSON.parse(data);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Cloud Storage 클라이언트 초기화
+const storage = new Storage();
+const bucketName = 'run-sources-predictourist-api-us-central1';
+const basePath = 'services/popular-places/data/';
+
+async function readJSON(filename) {
+  try {
+    const filePath = `${basePath}${filename}`;
+    const file = storage.bucket(bucketName).file(filePath);
+    const [exists] = await file.exists();
+    
+    if (!exists) {
+      console.warn(`File ${filePath} does not exist in bucket ${bucketName}`);
+      return {};
+    }
+
+    const [content] = await file.download();
+    return JSON.parse(content.toString());
+  } catch (error) {
+    console.error(`Error reading ${filename} from Cloud Storage:`, error);
+    return {};
+  }
 }
 
-function writeJSON(filename, data, cache) {
-  const filePath = path.join(__dirname, filename);
-  const jsonData = JSON.stringify(data, null, 2);
-  fs.writeFileSync(filePath, jsonData, 'utf8');
-
-  // 캐시 갱신
-  if (filename === 'places.json' && cache.allPlacesCache) {
-    cache.allPlacesCache = data;
-    Object.keys(data).forEach(id => {
-      cache.individualPlaceCache[id] = attachDynamicFields(data[id]);
+async function writeJSON(filename, data, cache) {
+  try {
+    const filePath = `${basePath}${filename}`;
+    const file = storage.bucket(bucketName).file(filePath);
+    const jsonData = JSON.stringify(data, null, 2);
+    
+    await file.save(jsonData, {
+      contentType: 'application/json',
+      metadata: {
+        cacheControl: 'no-cache'
+      }
     });
-  }
-  if (filename === 'frequentPlaces.json' && cache.frequentPlacesCache) {
-    cache.frequentPlacesCache = data;
+
+    // 캐시 갱신
+    if (cache) {
+      if (filename === 'places.json') {
+        cache.setAllPlaces(data);
+        Object.keys(data).forEach(id => {
+          cache.setPlace(id, attachDynamicFields(data[id]));
+        });
+      }
+      if (filename === 'frequentPlaces.json') {
+        cache.frequentPlaces = data;
+      }
+    }
+
+    console.log(`Successfully wrote ${filePath} to Cloud Storage`);
+  } catch (error) {
+    console.error(`Error writing ${filename} to Cloud Storage:`, error);
+    throw error;
   }
 }
 

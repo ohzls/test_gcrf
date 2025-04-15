@@ -24,10 +24,27 @@ export class CacheManager {
     this.individualPlaces.set(id, data);
     this.expiryTimes.individual.set(id, Date.now() + ONE_DAY_MS);
   }
+
+  getAllPlaces() {
+    return this.allPlaces;
+  }
+  
+  setAllPlaces(data) {
+    this.allPlaces = data;
+    this.expiryTimes.allPlaces = Date.now() + ONE_DAY_MS;
+  }
+  
+  isAllPlacesValid() {
+    return this.allPlaces !== null && Date.now() < this.expiryTimes.allPlaces;
+  }
   
   invalidateAll() {
     this.allPlaces = null;
+    this.individualPlaces.clear();
+    this.frequentPlaces = null;
     this.expiryTimes.allPlaces = 0;
+    this.expiryTimes.individual.clear();
+    this.expiryTimes.frequent = 0;
   }
 
   invalidatePlace(id) {

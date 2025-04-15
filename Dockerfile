@@ -1,19 +1,27 @@
 # Node.js 런타임 베이스 이미지 사용
-FROM node:22
+FROM node:18-alpine
 
 # 앱 디렉토리 생성
-WORKDIR /usr/src/app
-
-# 패키지 파일 복사 및 종속성 설치
-COPY package*.json ./
-RUN npm install --production
+WORKDIR /app
 
 # 소스 코드 복사
-COPY . .
+COPY package*.json ./
+COPY *.js ./
 
-# 포트 노출 (Cloud Run은 PORT 환경변수 사용)
-ENV PORT=8080
+# 데이터 디렉토리 생성
+RUN mkdir -p /app/data
+
+# 의존성 설치
+RUN npm install
+
+# 데이터 볼륨 마운트 포인트
+VOLUME /app/data
+
+# 환경 변수 설정
+ENV DATA_DIR=/app/data
+
+# 포트 노출
 EXPOSE 8080
 
-# 앱 실행
-CMD [ "npm", "start" ]
+# 애플리케이션 실행
+CMD ["node", "index.js"]

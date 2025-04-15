@@ -1,33 +1,44 @@
 // frequentUpdater.js
 
 import { readJSON, writeJSON } from './fileUtils.js';
+import { CacheManager } from './cache.js';
 
 const PLACES_FILE = 'places.json';
 const FREQUENT_FILE = 'frequentPlaces.json';
 const FREQUENT_THRESHOLD = 20;  // 예시: 호출 빈도가 20 이상인 관광지만 자주 호출된 곳으로 처리
 
-let frequentPlacesCache = null;
+const cache = new CacheManager();
 
-function updateFrequentPlaces(cache) {
-  const allPlaces = readJSON(PLACES_FILE);
-  const frequencyData = readJSON('frequency.json');
+async function updateFrequentPlaces() {
+  try {
+    const allPlaces = await readJSON(PLACES_FILE);
+    const frequencyData = await readJSON('frequency.json');
 
-  const frequentPlaces = allPlaces.filter(place => {
-    const count = frequencyData[String(place.id)] || 0;
-    return count >= FREQUENT_THRESHOLD;
-  });
+    const frequentPlaces = allPlaces.filter(place => {
+      const count = frequencyData[String(place.id)] || 0;
+      return count >= FREQUENT_THRESHOLD;
+    });
 
-  writeJSON(FREQUENT_FILE, frequentPlaces, cache);
-  frequentPlacesCache = frequentPlaces;
+    await writeJSON(FREQUENT_FILE, frequentPlaces, cache);
+    cache.frequentPlaces = frequentPlaces;
 
-  return frequentPlaces;
+    return frequentPlaces;
+  } catch (error) {
+    console.error('Error updating frequent places:', error);
+    return [];
+  }
 }
 
-function getFrequentPlaces() {
-  if (!frequentPlacesCache) {
-    frequentPlacesCache = readJSON(FREQUENT_FILE);
+async function getFrequentPlaces() {
+  try {
+    if (!cache.frequentPlaces) {
+      cache.frequentPlaces = await readJSON(FREQUENT_FILE);
+    }
+    return cache.frequentPlaces;
+  } catch (error) {
+    console.error('Error getting frequent places:', error);
+    return [];
   }
-  return frequentPlacesCache;
 }
 
 export { updateFrequentPlaces, getFrequentPlaces };
