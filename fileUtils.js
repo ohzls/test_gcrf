@@ -47,9 +47,10 @@ async function writeJSON(filename, data, cache) {
     // 캐시 갱신
     if (cache) {
       if (filename === 'places.json') {
-        cache.setAllPlaces(data);
-        Object.keys(data).forEach(id => {
-          cache.setPlace(id, attachDynamicFields(data[id]));
+        const enrichedData = data.map(attachDynamicFields);
+        cache.setAllPlaces(enrichedData);
+        data.forEach(place => {
+          cache.setPlace(place.id, attachDynamicFields(place));
         });
       }
       if (filename === 'frequentPlaces.json') {

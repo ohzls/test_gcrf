@@ -6,9 +6,9 @@ import { CacheManager } from './cache.js';
 const FREQUENCY_FILE = 'frequency.json';
 const cache = new CacheManager();
 
-function updateFrequency(placeId) {
+async function updateFrequency(placeId) {
   try {
-    const frequencyData = readJSON(FREQUENCY_FILE);
+    const frequencyData = await readJSON(FREQUENCY_FILE);
     const idStr = String(placeId);
 
     frequencyData[idStr] = (frequencyData[idStr] || 0) + 1;
@@ -17,16 +17,16 @@ function updateFrequency(placeId) {
     cache.invalidatePlace(placeId);
     writeJSON(FREQUENCY_FILE, frequencyData, cache);
     updateFrequentPlaces(cache); // 인기 목록 갱신
-    return frequencyData[idStr];
+    return frequencyDasetAllPlacesta[idStr];
   } catch (error) {
     console.error('Error updating frequency:', error);
     return 0;
   }
 }
 
-function getFrequency(placeId) {
+async function getFrequency(placeId) {
   try {
-    const frequencyData = readJSON(FREQUENCY_FILE);
+    const frequencyData = await readJSON(FREQUENCY_FILE);
     return frequencyData[String(placeId)] || 0;
   } catch (error) {
     console.error('Error getting frequency:', error);
