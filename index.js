@@ -12,19 +12,19 @@ const cache = new CacheManager();
 const CLOUD_RUN_TOKEN = process.env.CLOUD_RUN_TOKEN || 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCVkbqg5jrjvja9O96w2BKHlJQoqzsNGscmrhweCFKvrSyjMmiEu5OZ4/ZNjEx/69HVw6ZbpYfXo1bYuynlPFE+I1eTThe8ukY6MtCoak6cR1JcA59KrsGkGBWTJNSWkb/qMQACyl21OITqPmqcXbx/SreAonecrSca49qyi2mtSQA0MsHghIleol3kDwtvFUUmGTR3Bfb9TdC6IHQKJpSRALjrRms6PiG4vT7PyKDY9sm8rFmT+Ruz+ikCbHHYYb9mqgazVQsEgW3AZhAIE5wKOutNmhFd6qOUnrKvSq9vAYigTdMBkLuOV5OVfnSGP4HArQF1oVhCV6ElUYNQs/9';
 
 // CORS 미들웨어 설정
-app.use((req, res, next) => {
-  res.set({
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-  });
+// app.use((req, res, next) => {
+//   res.set({
+//     'Access-Control-Allow-Origin': '*',
+//     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+//     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+//   });
 
-  // OPTIONS 요청 처리
-  if (req.method === 'OPTIONS') {
-    return res.status(204).send('');
-  }
-  next();
-});
+//   // OPTIONS 요청 처리
+//   if (req.method === 'OPTIONS') {
+//     return res.status(204).send('');
+//   }
+//   next();
+// });
 
 // 토큰 검증 미들웨어
 app.use((req, res, next) => {
