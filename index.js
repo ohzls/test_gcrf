@@ -1,3 +1,5 @@
+// index.js
+
 import express from 'express';
 import { readJSON } from './fileUtils.js';
 import { updateFrequency } from './frequencyManager.js';
@@ -10,51 +12,6 @@ const cache = new CacheManager();
 
 // 환경 변수 설정
 const CLOUD_RUN_TOKEN = process.env.CLOUD_RUN_TOKEN || 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCVkbqg5jrjvja9O96w2BKHlJQoqzsNGscmrhweCFKvrSyjMmiEu5OZ4/ZNjEx/69HVw6ZbpYfXo1bYuynlPFE+I1eTThe8ukY6MtCoak6cR1JcA59KrsGkGBWTJNSWkb/qMQACyl21OITqPmqcXbx/SreAonecrSca49qyi2mtSQA0MsHghIleol3kDwtvFUUmGTR3Bfb9TdC6IHQKJpSRALjrRms6PiG4vT7PyKDY9sm8rFmT+Ruz+ikCbHHYYb9mqgazVQsEgW3AZhAIE5wKOutNmhFd6qOUnrKvSq9vAYigTdMBkLuOV5OVfnSGP4HArQF1oVhCV6ElUYNQs/9';
-
-// CORS 미들웨어 설정
-// app.use((req, res, next) => {
-//   res.set({
-//     'Access-Control-Allow-Origin': '*',
-//     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-//     'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-//   });
-
-//   // OPTIONS 요청 처리
-//   if (req.method === 'OPTIONS') {
-//     return res.status(204).send('');
-//   }
-//   next();
-// });
-
-// 토큰 검증 미들웨어
-app.use((req, res, next) => {
-  // OPTIONS 요청은 검증하지 않음
-  if (req.method === 'OPTIONS') {
-    return next();
-  }
-
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: '인증 토큰이 필요합니다.' });
-  }
-
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: '유효하지 않은 토큰 형식입니다.' });
-  }
-
-  // 토큰 검증 로직
-  try {
-    // 임시로 단순 비교만 수행
-    if (token !== CLOUD_RUN_TOKEN) {
-      return res.status(401).json({ error: '유효하지 않은 토큰입니다.' });
-    }
-    next();
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return res.status(401).json({ error: '토큰 검증 중 오류가 발생했습니다.' });
-  }
-});
 
 // 개별 조회 (/places)는 기존 방식대로 id 기반 조회를 유지할 수 있습니다.
 // 이제 서버 측 검색을 위한 새로운 엔드포인트를 추가합니다.
