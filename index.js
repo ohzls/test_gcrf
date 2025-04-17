@@ -63,6 +63,36 @@ app.get('/places', async (req, res) => {
       return res.status(400).json({ error: '유효한 관광지 ID가 아닙니다.' });
     }
 
+
+    console.log(`[${new Date().toISOString()}] Calling updateFrequency for id: ${placeId}`);
+    await updateFrequency(placeId); // Note: This is called without await, might be intentional but could hide errors
+    console.log(`[${new Date().toISOString()}] Calling updateFrequentPlaces`);
+    await updateFrequentPlaces(); // This one is awaited
+
+    console.log(`[${new Date().toISOString()}] Checking cache for id: ${placeId}`);
+    const cachedPlace = cache.getPlace(placeId);
+    if (cachedPlace) {
+      console.log(`[${new Date().toISOString()}] Cache hit for id: ${placeId}`);
+      return res.status(200).json(cachedPlace);
+    }
+    console.log(`[${new Date().toISOString()}] Cache miss for id: ${placeId}. Reading from GCS.`);
+
+    const allPlaces = await readJSON('places.json');
+    console.log(`[${new Date().toISOString()}] Read places.json successfully.`);
+
+    const target = allPlaces.find(p => p.id === placeId);
+    if (!target) {
+      console.log(`[${new Date().toISOString()}] Place not found for id: ${placeId}`);
+      return res.status(404).json({ error: '관광지 정보를 찾을 수 없습니다.' });
+    }
+    console.log(`[${new Date().toISOString()}] Place found for id: ${placeId}. Attaching dynamic fields.`);
+
+    const enriched = attachDynamicFields(target);
+    console.log(`[${new Date().toISOString()}] Setting cache for id: ${placeId}`);
+    cache.setPlace(placeId, enriched);
+
+    console.log(`[${new Date().toISOString()}] Sending successful response for id: ${placeId}`);
+
     // 개별 조회 시 호출 빈도 업데이트
     updateFrequency(placeId);
     // 호출 빈도 업데이트 후 자주 호출되는 관광지 목록도 갱신
@@ -87,7 +117,7 @@ app.get('/places', async (req, res) => {
     
     return res.status(200).json(enriched);
   } catch (error) {
-    console.error('Error in places:', error);
+    console.error(`[${new Date().toISOString()}] Error in /places handler for id: ${req.query.id}:`, error.stack || error);
     res.status(500).json({ error: '서버 내부 오류가 발생했습니다.' });
   }
 });
