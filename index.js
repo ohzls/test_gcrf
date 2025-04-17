@@ -111,23 +111,6 @@ app.get('/places', async (req, res) => {
     updateFrequency(placeId);
     // 호출 빈도 업데이트 후 자주 호출되는 관광지 목록도 갱신
     await updateFrequentPlaces();
-
-    // 캐시에 이미 존재하면 캐시된 데이터를 바로 반환
-    const cachedPlace = cache.getPlace(placeId);
-    if (cachedPlace) {
-      return res.status(200).json(cachedPlace);
-    }
-
-    // 캐시에 없으면, places.json에서 대상 데이터를 읽어옴
-    const allPlaces = await readJSON('places.json');
-    const target = allPlaces.find(p => p.id === placeId);
-    if (!target) {
-      return res.status(404).json({ error: '관광지 정보를 찾을 수 없습니다.' });
-    }
-
-    // 동적 데이터를 붙여서 결과 생성 및 캐싱
-    const enriched = attachDynamicFields(target);
-    cache.setPlace(placeId, enriched);
     
     return res.status(200).json(enriched);
   } catch (error) {
