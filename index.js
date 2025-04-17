@@ -1,6 +1,7 @@
 // index.js
 
 import express from 'express';
+import cors from 'cors'; // <--- cors import 추가
 import { readJSON } from './fileUtils.js';
 import { updateFrequency } from './frequencyManager.js';
 import { updateFrequentPlaces, getFrequentPlaces } from './frequentUpdater.js';
@@ -10,11 +11,24 @@ import { CacheManager } from './cache.js';
 const app = express();
 const cache = new CacheManager();
 
-// 환경 변수 설정
-const CLOUD_RUN_TOKEN = process.env.CLOUD_RUN_TOKEN || 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCVkbqg5jrjvja9O96w2BKHlJQoqzsNGscmrhweCFKvrSyjMmiEu5OZ4/ZNjEx/69HVw6ZbpYfXo1bYuynlPFE+I1eTThe8ukY6MtCoak6cR1JcA59KrsGkGBWTJNSWkb/qMQACyl21OITqPmqcXbx/SreAonecrSca49qyi2mtSQA0MsHghIleol3kDwtvFUUmGTR3Bfb9TdC6IHQKJpSRALjrRms6PiG4vT7PyKDY9sm8rFmT+Ruz+ikCbHHYYb9mqgazVQsEgW3AZhAIE5wKOutNmhFd6qOUnrKvSq9vAYigTdMBkLuOV5OVfnSGP4HArQF1oVhCV6ElUYNQs/9';
-
-// 개별 조회 (/places)는 기존 방식대로 id 기반 조회를 유지할 수 있습니다.
-// 이제 서버 측 검색을 위한 새로운 엔드포인트를 추가합니다.
+// --- CORS 미들웨어 설정 ---
+const corsOptions = {
+  // 이전 x-google-cors의 allowOrigins와 동일하게 설정
+  origin: ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
+  // 이전 x-google-cors의 allowMethods와 동일하게 설정 (OPTIONS 포함)
+  methods: "GET, POST, OPTIONS",
+  // 이전 x-google-cors의 allowHeaders와 동일하게 설정
+  allowedHeaders: "Authorization, Content-Type",
+  // 이전 x-google-cors의 exposeHeaders와 동일하게 설정
+  exposedHeaders: "Content-Length, Content-Range",
+  // 이전 x-google-cors의 allowCredentials와 동일하게 설정
+  credentials: true,
+  // 이전 x-google-cors의 maxAge와 동일하게 설정
+  maxAge: 3600,
+  // Preflight 요청(OPTIONS)에 대한 성공 상태 코드 (중요)
+  optionsSuccessStatus: 204 // 또는 200
+};
+app.use(cors(corsOptions)); // <--- 모든 라우트 전에 CORS 미들웨어 적용
 
 app.get('/searchPlaces', async (req, res) => {
   try {
