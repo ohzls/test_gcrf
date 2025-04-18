@@ -14,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // 캐시 초기화
-cache.initialize();
+await cache.initialize();
 
 // 주기적 캐시 동기화
 setInterval(() => cache.sync(), cache.SYNC_INTERVAL);
@@ -163,8 +163,16 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json(errorResponse);
 });
 
-// Cloud Run은 PORT 환경 변수를 자동으로 설정합니다
+// 서버 시작
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
-  console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-});
+console.log('서버 시작 시도...');
+console.log(`PORT: ${PORT}`);
+
+try {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
+  });
+} catch (error) {
+  console.error('서버 시작 실패:', error);
+  process.exit(1);
+}
