@@ -1,54 +1,69 @@
 // cache.js
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+import FileUtils from './fileUtils.js';
 
-export class CacheManager {
+class Cache {
   constructor() {
-    this.allPlaces = null;
-    this.individualPlaces = new Map();
-    this.frequentPlaces = null;
-    this.expiryTimes = {
-      allPlaces: 0,
-      individual: new Map(),
-      frequent: 0
-    };
+    this.places = new Map();
+    this.variableData = new Map();
+    this.syncInProgress = false;
+    this.SYNC_INTERVAL = 30000; // 30초
+  }
+
+  async initialize() {
+    try {
+      const basePlaces = await FileUtils.getBasePlaces();
+      const variableData = await FileUtils.getVariableData();
+      
+      Object.entries(basePlaces).forEach(([id, data]) => {
+        this.places.set(id, data);
+      });
+      
+      Object.entries(variableData).forEach(([id, data]) => {
+        this.variableData.set(id, data);
+      });
+      
+      this.startSync();
+    } catch (error) {
+      console.error('캐시 초기화 실패:', error);
+    }
+  }
+
+  startSync() {
+    setInterval(() => this.sync(), this.SYNC_INTERVAL);
+  }
+
+  async sync() {
+    if (this.syncInProgress) return;
+    
+    try {
+      this.syncInProgress = true;
+      
+      const variableData = Object.fromEntries(this.variableData);
+      await FileUtils.updateVariableData(variableData);
+      
+      console.log('캐시 동기화 완료');
+    } catch (error) {
+      console.error('캐시 동기화 실패:', error);
+    } finally {
+      this.syncInProgress = false;
+    }
   }
 
   getPlace(id) {
-    if (this.individualPlaces.has(id) && Date.now() < this.expiryTimes.individual.get(id)) {
-      return this.individualPlaces.get(id);
-    }
-    return null;
+    return this.places.get(id);
   }
 
-  setPlace(id, data) {
-    this.individualPlaces.set(id, data);
-    this.expiryTimes.individual.set(id, Date.now() + ONE_DAY_MS);
+  getVariableData(id) {
+    return this.variableData.get(id);
   }
 
-  getAllPlaces() {
-    return this.allPlaces;
-  }
-  
-  setAllPlaces(data) {
-    this.allPlaces = data;
-    this.expiryTimes.allPlaces = Date.now() + ONE_DAY_MS;
-  }
-  
-  isAllPlacesValid() {
-    return this.allPlaces !== null && Date.now() < this.expiryTimes.allPlaces;
-  }
-  
-  invalidateAll() {
-    this.allPlaces = null;
-    this.individualPlaces.clear();
-    this.frequentPlaces = null;
-    this.expiryTimes.allPlaces = 0;
-    this.expiryTimes.individual.clear();
-    this.expiryTimes.frequent = 0;
-  }
-
-  invalidatePlace(id) {
-    this.individualPlaces.delete(id);
-    this.expiryTimes.individual.delete(id);
+  setVariableData(id, data) {
+    this.variableData.set(id, {
+      ...data,
+      lastUpdated: new Date().toISOString()
+    });
+    this.sync(); // 변경사항이 있을 때마다 동기화 시도
   }
 }
+
+export default new Cache();

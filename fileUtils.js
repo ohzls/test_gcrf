@@ -1,68 +1,67 @@
 // fileUtils.js
 
 import { Storage } from '@google-cloud/storage';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import { attachDynamicFields } from './generateData.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// Cloud Storage 클라이언트 초기화
 const storage = new Storage();
-const bucketName = 'run-sources-predictourist-api-us-central1';
-const basePath = 'services/popular-places/data/';
+const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
 
-async function readJSON(filename) {
-  try {
-    const filePath = `${basePath}${filename}`;
-    const file = storage.bucket(bucketName).file(filePath);
-    const [exists] = await file.exists();
-    
-    if (!exists) {
-      console.warn(`File ${filePath} does not exist in bucket ${bucketName}`);
+class FileUtils {
+  static async getBasePlaces() {
+    try {
+      const [file] = await bucket.file('data/base_places.json').download();
+      return JSON.parse(file);
+    } catch (error) {
+      console.error('기본 장소 데이터 로드 실패:', error);
       return {};
     }
-
-    const [content] = await file.download();
-    return JSON.parse(content.toString());
-  } catch (error) {
-    console.error(`Error reading ${filename} from Cloud Storage:`, error);
-    return {};
   }
-}
 
-async function writeJSON(filename, data, cache) {
-  try {
-    const filePath = `${basePath}${filename}`;
-    const file = storage.bucket(bucketName).file(filePath);
-    const jsonData = JSON.stringify(data, null, 2);
-    
-    await file.save(jsonData, {
-      contentType: 'application/json',
-      metadata: {
-        cacheControl: 'no-cache'
-      }
-    });
-
-    // 캐시 갱신
-    if (cache) {
-      if (filename === 'places.json') {
-        const enrichedData = data.map(attachDynamicFields);
-        cache.setAllPlaces(enrichedData);
-        data.forEach(place => {
-          cache.setPlace(place.id, attachDynamicFields(place));
-        });
-      }
-      if (filename === 'frequentPlaces.json') {
-        cache.frequentPlaces = data;
-      }
+  static async getPlaceDetails(placeId) {
+    try {
+      const [file] = await bucket.file(`data/place_details/${placeId}.json`).download();
+      return JSON.parse(file);
+    } catch (error) {
+      console.error('장소 상세 정보 로드 실패:', error);
+      return {};
     }
+  }
 
-    console.log(`Successfully wrote ${filePath} to Cloud Storage`);
-  } catch (error) {
-    console.error(`Error writing ${filename} to Cloud Storage:`, error);
-    throw error;
+  static async getVariableData() {
+    try {
+      const [file] = await bucket.file('data/variable_data.json').download();
+      return JSON.parse(file);
+    } catch (error) {
+      console.error('변동 데이터 로드 실패:', error);
+      return {};
+    }
+  }
+
+  static async updateBasePlaces(data) {
+    try {
+      await bucket.file('data/base_places.json').save(JSON.stringify(data));
+    } catch (error) {
+      console.error('기본 장소 데이터 업데이트 실패:', error);
+      throw error;
+    }
+  }
+
+  static async updatePlaceDetails(placeId, data) {
+    try {
+      await bucket.file(`data/place_details/${placeId}.json`).save(JSON.stringify(data));
+    } catch (error) {
+      console.error('장소 상세 정보 업데이트 실패:', error);
+      throw error;
+    }
+  }
+
+  static async updateVariableData(data) {
+    try {
+      await bucket.file('data/variable_data.json').save(JSON.stringify(data));
+    } catch (error) {
+      console.error('변동 데이터 업데이트 실패:', error);
+      throw error;
+    }
   }
 }
 
-export { readJSON, writeJSON };
+export default FileUtils;
