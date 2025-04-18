@@ -3,6 +3,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import { Storage } from '@google-cloud/storage';
 import FileUtils from './fileUtils.js';
 import cache from './cache.js';
 import { updateFrequency } from './frequencyManager.js';
@@ -12,6 +13,16 @@ import { attachDynamicFields } from './generateData.js';
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Cloud Storage 인증 확인
+console.log('Cloud Storage 인증 확인...');
+const storage = new Storage();
+const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
+
+// 기본 경로 추가
+app.get('/', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // 캐시 초기화
 console.log('캐시 초기화 시작...');
