@@ -31,31 +31,38 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 // Cloud Run 인증 미들웨어
-app.use((req, res, next) => {
-  // Cloud Run IAP 인증 확인
-  if (req.headers['x-goog-iap-jwt-assertion']) {
-    return next();
-  }
+// app.use((req, res, next) => {
+//   // Cloud Run IAP 인증 확인
+//   if (req.headers['x-goog-iap-jwt-assertion']) {
+//     return next();
+//   }
 
-  // Authorization 헤더 확인
+//   // Authorization 헤더 확인
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader) {
+//     return res.status(401).json({ error: '인증이 필요합니다.' });
+//   }
+
+//   const token = authHeader.split(' ')[1];
+//   if (!token) {
+//     return res.status(401).json({ error: '잘못된 인증 형식입니다.' });
+//   }
+
+//   // 토큰 검증 로직 (필요에 따라 구현)
+//   // 예: JWT 검증, API 키 검증 등
+//   if (token !== process.env.API_TOKEN) {
+//     return res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
+//   }
+
+//   next();
+// });
+app.use((req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
-    return res.status(401).json({ error: '인증이 필요합니다.' });
+    return res.status(401).json({ error: '인증 토큰이 필요합니다' });
   }
-
-  const token = authHeader.split(' ')[1];
-  if (!token) {
-    return res.status(401).json({ error: '잘못된 인증 형식입니다.' });
-  }
-
-  // 토큰 검증 로직 (필요에 따라 구현)
-  // 예: JWT 검증, API 키 검증 등
-  if (token !== process.env.API_TOKEN) {
-    return res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
-  }
-
   next();
-});
+}); 
 
 // Cloud Storage 인증 확인
 console.log('Cloud Storage 인증 확인...');
