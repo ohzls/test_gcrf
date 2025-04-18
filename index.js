@@ -13,11 +13,20 @@ import { attachDynamicFields } from './generateData.js';
 const app = express();
 
 const corsOptions = {
+  // 이전 x-google-cors의 allowOrigins와 동일하게 설정
   origin: ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Authorization", "Content-Type"],
+  // 이전 x-google-cors의 allowMethods와 동일하게 설정 (OPTIONS 포함)
+  methods: "GET, POST, OPTIONS",
+  // 이전 x-google-cors의 allowHeaders와 동일하게 설정
+  allowedHeaders: "Authorization, Content-Type",
+  // 이전 x-google-cors의 exposeHeaders와 동일하게 설정
+  exposedHeaders: "Content-Length, Content-Range",
+  // 이전 x-google-cors의 allowCredentials와 동일하게 설정
   credentials: true,
-  optionsSuccessStatus: 204
+  // 이전 x-google-cors의 maxAge와 동일하게 설정
+  maxAge: 3600,
+  // Preflight 요청(OPTIONS)에 대한 성공 상태 코드 (중요)
+  optionsSuccessStatus: 204 // 또는 200
 };
 
 // CORS 설정
