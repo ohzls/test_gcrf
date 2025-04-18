@@ -19,6 +19,7 @@ VOLUME /app/data
 
 # 환경 변수 설정
 ENV DATA_DIR=/app/data
+ENV PORT=8080
 
 # 포트 노출
 EXPOSE 8080
