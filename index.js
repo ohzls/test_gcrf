@@ -12,19 +12,11 @@ import { attachDynamicFields } from './generateData.js';
 
 const app = express();
 
-// 환경 변수 설정
-const CLOUD_RUN_TOKEN = process.env.CLOUD_RUN_TOKEN || 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDCVkbqg5jrjvja9O96w2BKHlJQoqzsNGscmrhweCFKvrSyjMmiEu5OZ4/ZNjEx/69HVw6ZbpYfXo1bYuynlPFE+I1eTThe8ukY6MtCoak6cR1JcA59KrsGkGBWTJNSWkb/qMQACyl21OITqPmqcXbx/SreAonecrSca49qyi2mtSQA0MsHghIleol3kDwtvFUUmGTR3Bfb9TdC6IHQKJpSRALjrRms6PiG4vT7PyKDY9sm8rFmT+Ruz+ikCbHHYYb9mqgazVQsEgW3AZhAIE5wKOutNmhFd6qOUnrKvSq9vAYigTdMBkLuOV5OVfnSGP4HArQF1oVhCV6ElUYNQs/9';
-
 const corsOptions = {
-  // 개발 환경에서는 모든 origin 허용, 프로덕션에서는 지정된 origin만 허용
-  origin: process.env.NODE_ENV === 'production' 
-    ? ["https://seoseongwon.gitlab.io", "https://predictourist.com"]
-    : ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
+  origin: ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Authorization", "Content-Type"],
-  exposedHeaders: ["Content-Length", "Content-Range"],
   credentials: true,
-  maxAge: 3600,
   optionsSuccessStatus: 204
 };
 
@@ -32,21 +24,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use(express.json());
-
-// 인증 미들웨어
-app.use((req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: '인증 토큰이 필요합니다' });
-  }
-
-  const token = authHeader.split(' ')[1];
-  if (token !== CLOUD_RUN_TOKEN) {
-    return res.status(403).json({ error: '유효하지 않은 토큰입니다' });
-  }
-
-  next();
-});
 
 // Cloud Storage 인증 확인
 console.log('Cloud Storage 인증 확인...');
