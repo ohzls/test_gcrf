@@ -12,18 +12,32 @@ import { attachDynamicFields } from './generateData.js';
 
 const app = express();
 
-// CORS 설정
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+const corsOptions = {
+  // 개발 환경에서는 모든 origin 허용, 프로덕션에서는 지정된 origin만 허용
+  origin: process.env.NODE_ENV === 'production' 
+    ? ["https://seoseongwon.gitlab.io", "https://predictourist.com"]
+    : ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Authorization", "Content-Type", "X-API-Version"],
+  exposedHeaders: ["Content-Length", "Content-Range"],
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  maxAge: 3600,
+  optionsSuccessStatus: 204
+};
+
+// CORS 설정
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
 // Cloud Run 인증 미들웨어
 app.use((req, res, next) => {
+  // Cloud Run IAP 인증 확인
+  if (req.headers['x-goog-iap-jwt-assertion']) {
+    return next();
+  }
+
+  // Authorization 헤더 확인
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: '인증이 필요합니다.' });
@@ -34,10 +48,10 @@ app.use((req, res, next) => {
     return res.status(401).json({ error: '잘못된 인증 형식입니다.' });
   }
 
-  // Cloud Run 서비스 계정 토큰 검증
-  // 환경변수 대신 Cloud Run의 내장 인증 메커니즘 사용
-  if (!req.headers['x-goog-iap-jwt-assertion']) {
-    return res.status(403).json({ error: '유효하지 않은 인증입니다.' });
+  // 토큰 검증 로직 (필요에 따라 구현)
+  // 예: JWT 검증, API 키 검증 등
+  if (token !== process.env.API_TOKEN) {
+    return res.status(403).json({ error: '유효하지 않은 토큰입니다.' });
   }
 
   next();
