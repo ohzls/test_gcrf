@@ -2,7 +2,9 @@
 
 import { Storage } from '@google-cloud/storage';
 
-const storage = new Storage();
+const storage = new Storage({
+  projectId: 'predictourist-api',
+});
 const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
 
 class FileUtils {
