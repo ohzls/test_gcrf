@@ -50,4 +50,9 @@ class FileUtils {
   }
 }
 
-export { FileUtils as default, FileUtils };
+// 개별 메서드 export
+export const readJSON = FileUtils.readJSON.bind(FileUtils);
+export const writeJSON = FileUtils.writeJSON.bind(FileUtils);
+
+// 클래스 export
+export default FileUtils;
