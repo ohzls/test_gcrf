@@ -11,8 +11,37 @@ import { updateFrequentPlaces, getFrequentPlaces } from './frequentUpdater.js';
 import { attachDynamicFields } from './generateData.js';
 
 const app = express();
-app.use(cors());
+
+// CORS 설정
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 app.use(express.json());
+
+// Cloud Run 인증 미들웨어
+app.use((req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: '인증이 필요합니다.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: '잘못된 인증 형식입니다.' });
+  }
+
+  // Cloud Run 서비스 계정 토큰 검증
+  // 환경변수 대신 Cloud Run의 내장 인증 메커니즘 사용
+  if (!req.headers['x-goog-iap-jwt-assertion']) {
+    return res.status(403).json({ error: '유효하지 않은 인증입니다.' });
+  }
+
+  next();
+});
 
 // Cloud Storage 인증 확인
 console.log('Cloud Storage 인증 확인...');
