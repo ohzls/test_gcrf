@@ -165,6 +165,6 @@ app.use((err, req, res, next) => {
 
 // Cloud Run은 PORT 환경 변수를 자동으로 설정합니다
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
 });
