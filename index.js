@@ -18,7 +18,7 @@ const corsOptions = {
   // 이전 x-google-cors의 allowMethods와 동일하게 설정 (OPTIONS 포함)
   methods: "GET, POST, OPTIONS",
   // 이전 x-google-cors의 allowHeaders와 동일하게 설정
-  allowedHeaders: "Authorization, Content-Type",
+  allowedHeaders: "Authorization, Content-Type, x-api-key",
   // 이전 x-google-cors의 exposeHeaders와 동일하게 설정
   exposedHeaders: "Content-Length, Content-Range",
   // 이전 x-google-cors의 allowCredentials와 동일하게 설정
