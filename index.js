@@ -14,7 +14,14 @@ app.use(cors());
 app.use(express.json());
 
 // 캐시 초기화
-await cache.initialize();
+console.log('캐시 초기화 시작...');
+try {
+  await cache.initialize();
+  console.log('캐시 초기화 완료');
+} catch (error) {
+  console.error('캐시 초기화 실패:', error);
+  process.exit(1);
+}
 
 // 주기적 캐시 동기화
 setInterval(() => cache.sync(), cache.SYNC_INTERVAL);
@@ -169,7 +176,7 @@ console.log('서버 시작 시도...');
 console.log(`PORT: ${PORT}`);
 
 try {
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, () => {
     console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
   });
 } catch (error) {
