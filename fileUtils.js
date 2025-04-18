@@ -6,62 +6,48 @@ const storage = new Storage();
 const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
 
 class FileUtils {
-  static async getBasePlaces() {
+  static async readJSON(filePath) {
     try {
-      const [file] = await bucket.file('data/base_places.json').download();
+      const [file] = await bucket.file(filePath).download();
       return JSON.parse(file);
     } catch (error) {
-      console.error('기본 장소 데이터 로드 실패:', error);
+      console.error(`JSON 파일 로드 실패 (${filePath}):`, error);
       return {};
     }
+  }
+
+  static async writeJSON(filePath, data) {
+    try {
+      await bucket.file(filePath).save(JSON.stringify(data));
+    } catch (error) {
+      console.error(`JSON 파일 저장 실패 (${filePath}):`, error);
+      throw error;
+    }
+  }
+
+  static async getBasePlaces() {
+    return this.readJSON('data/base_places.json');
   }
 
   static async getPlaceDetails(placeId) {
-    try {
-      const [file] = await bucket.file(`data/place_details/${placeId}.json`).download();
-      return JSON.parse(file);
-    } catch (error) {
-      console.error('장소 상세 정보 로드 실패:', error);
-      return {};
-    }
+    return this.readJSON(`data/place_details/${placeId}.json`);
   }
 
   static async getVariableData() {
-    try {
-      const [file] = await bucket.file('data/variable_data.json').download();
-      return JSON.parse(file);
-    } catch (error) {
-      console.error('변동 데이터 로드 실패:', error);
-      return {};
-    }
+    return this.readJSON('data/variable_data.json');
   }
 
   static async updateBasePlaces(data) {
-    try {
-      await bucket.file('data/base_places.json').save(JSON.stringify(data));
-    } catch (error) {
-      console.error('기본 장소 데이터 업데이트 실패:', error);
-      throw error;
-    }
+    await this.writeJSON('data/base_places.json', data);
   }
 
   static async updatePlaceDetails(placeId, data) {
-    try {
-      await bucket.file(`data/place_details/${placeId}.json`).save(JSON.stringify(data));
-    } catch (error) {
-      console.error('장소 상세 정보 업데이트 실패:', error);
-      throw error;
-    }
+    await this.writeJSON(`data/place_details/${placeId}.json`, data);
   }
 
   static async updateVariableData(data) {
-    try {
-      await bucket.file('data/variable_data.json').save(JSON.stringify(data));
-    } catch (error) {
-      console.error('변동 데이터 업데이트 실패:', error);
-      throw error;
-    }
+    await this.writeJSON('data/variable_data.json', data);
   }
 }
 
-export default FileUtils;
+export { FileUtils as default, FileUtils };
