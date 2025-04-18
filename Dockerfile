@@ -6,7 +6,7 @@ WORKDIR /app
 
 # 소스 코드 복사
 COPY package*.json ./
-COPY . .
+COPY *.js ./
 
 # 데이터 디렉토리 생성
 RUN mkdir -p /app/data
