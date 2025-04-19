@@ -78,13 +78,27 @@ app.get('/api/places/search', async (req, res) => {
     
     // 1. 자주 검색되는 장소에서 검색
     const frequentPlaces = await getFrequentPlaces();
-    const frequentResults = frequentPlaces.filter(place => 
-      place.name.toLowerCase().includes(normalizedQuery) ||
-      place.address.toLowerCase().includes(normalizedQuery) ||
-      place.searchKeywords.some(keyword => 
-        keyword.toLowerCase().includes(normalizedQuery)
-      )
-    );
+    const frequentResults = frequentPlaces.filter(place => {
+      // place 객체와 name 속성 유효성 검사
+      if (!place || typeof place.name !== 'string') return false;
+    
+      const normalizedQuery = query.toLowerCase(); // query는 이전에 정의됨
+    
+      const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
+    
+      // address 필드 유효성 검사 추가 후 검색
+      const addressMatch = place.address && typeof place.address === 'string' &&
+                         place.address.toLowerCase().includes(normalizedQuery);
+    
+      // tags 필드가 존재하고 배열인지 확인 후 검색
+      const tagMatch = place.tags && Array.isArray(place.tags) &&
+                     place.tags.some(tag =>
+                         // tag 값 자체도 문자열인지 확인
+                         tag && typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery)
+                     );
+    
+      return nameMatch || addressMatch || tagMatch;
+    });    
 
     if (frequentResults.length > 0) {
       return res.json(frequentResults.map(attachDynamicFields));
@@ -92,13 +106,27 @@ app.get('/api/places/search', async (req, res) => {
 
     // 2. 전체 장소에서 검색
     const results = Array.from(cache.places.values())
-      .filter(place => 
-        place.name.toLowerCase().includes(normalizedQuery) ||
-        place.address.toLowerCase().includes(normalizedQuery) ||
-        place.searchKeywords.some(keyword => 
-          keyword.toLowerCase().includes(normalizedQuery)
-        )
-      )
+      .filter(place => {
+        // place 객체와 name 속성 유효성 검사
+        if (!place || typeof place.name !== 'string') return false;
+      
+        const normalizedQuery = query.toLowerCase(); // query는 이전에 정의됨
+      
+        const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
+      
+        // address 필드 유효성 검사 추가 후 검색
+        const addressMatch = place.address && typeof place.address === 'string' &&
+                           place.address.toLowerCase().includes(normalizedQuery);
+      
+        // tags 필드가 존재하고 배열인지 확인 후 검색
+        const tagMatch = place.tags && Array.isArray(place.tags) &&
+                       place.tags.some(tag =>
+                           // tag 값 자체도 문자열인지 확인
+                           tag && typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery)
+                       );
+      
+        return nameMatch || addressMatch || tagMatch;
+      })      
       .map(place => ({
         ...place,
         currentCrowd: cache.getVariableData(place.id)?.crowd ?? 0
