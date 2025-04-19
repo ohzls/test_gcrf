@@ -80,7 +80,7 @@ app.get('/api/places/search', async (req, res) => {
     const frequentPlaces = await getFrequentPlaces();
     const frequentResults = frequentPlaces.filter(place => 
       place.name.toLowerCase().includes(normalizedQuery) ||
-      place.location.toLowerCase().includes(normalizedQuery) ||
+      place.address.toLowerCase().includes(normalizedQuery) ||
       place.searchKeywords.some(keyword => 
         keyword.toLowerCase().includes(normalizedQuery)
       )
@@ -94,7 +94,7 @@ app.get('/api/places/search', async (req, res) => {
     const results = Array.from(cache.places.values())
       .filter(place => 
         place.name.toLowerCase().includes(normalizedQuery) ||
-        place.location.toLowerCase().includes(normalizedQuery) ||
+        place.address.toLowerCase().includes(normalizedQuery) ||
         place.searchKeywords.some(keyword => 
           keyword.toLowerCase().includes(normalizedQuery)
         )
