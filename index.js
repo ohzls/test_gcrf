@@ -68,6 +68,23 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000); // 5분마다 업데이트
 
+function isValidPlace(place) {
+  // 가장 기본적인 검사: place 객체이고 name 속성이 문자열인지 확인
+  // 필요에 따라 address 등 다른 필수 필드 검사 추가 가능
+  if (!place || typeof place !== 'object') {
+    console.warn('[isValidPlace] 유효하지 않은 place 데이터 (객체 아님):', place);
+    return false;
+  }
+  if (typeof place.name !== 'string' || place.name.trim() === '') {
+    console.warn('[isValidPlace] name 속성이 없거나 비어있음:', place);
+    return false;
+  }
+  // 필요하다면 주소 타입 검사 등 추가
+  // if (typeof place.address !== 'string') { ... }
+
+  return true; // 기본 검사를 통과하면 유효하다고 간주
+}
+
 // 장소 검색 (1차 호출)
 app.get('/api/places/search', async (req, res, next) => {
   try {
