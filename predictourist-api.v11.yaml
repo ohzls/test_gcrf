@@ -1,0 +1,145 @@
+swagger: '2.0'
+info:
+  title: Predictourist API
+  description: API for tourist place recommendations
+  version: 1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header
+security:
+  - api_key: []
+paths:
+  /api/places/details:
+    options:
+      summary: CORS preflight check for places
+      operationId: CorsPlaces
+      security: []
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/details
+    get:
+      summary: Get place details
+      operationId: getPlaceDetails
+      security:
+        - api_key: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          type: string
+        - name: date
+          in: query
+          required: false
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/details
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/search:
+    options:
+      summary: CORS preflight check for places search
+      operationId: CorsPlacesSearch
+      security: []
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/search
+    get:
+      summary: Search places
+      operationId: searchPlaces
+      security:
+        - api_key: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/search
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/update:
+    options:
+      summary: CORS preflight check for place update
+      operationId: CorsPlaceUpdate
+      security: []
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/update
+    post:
+      summary: Update place data
+      operationId: updatePlaceData
+      security:
+        - api_key: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - crowd
+              - weather
+            properties:
+              crowd:
+                type: object
+                properties:
+                  hourly:
+                    type: array
+                    items:
+                      type: number
+                  lastUpdated:
+                    type: string
+                    format: date-time
+              weather:
+                type: string
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/update
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/frequent:
+    options:
+      summary: CORS preflight check for frequent places
+      operationId: CorsFrequentPlaces
+      security: []
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/frequent
+    get:
+      summary: Get frequent places
+      operationId: getFrequentPlaces
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/frequent
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
