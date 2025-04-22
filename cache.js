@@ -1,39 +1,69 @@
 // cache.js
 import FileUtils from './fileUtils.js';
+import { config } from './config.js';
+import { measurePerformance } from './monitoring.js';
 
 class Cache {
   constructor() {
     this.places = new Map();
-    this.variableData = new Map();
+    this.frequentPlaces = [];
     this.syncInProgress = false;
-    this.SYNC_INTERVAL = 30000; // 30초
+    this.SYNC_INTERVAL = config.cache.syncInterval;
+    this.locks = new Map();
+  }
+
+  getLock(key) {
+    return this.locks.get(key);
+  }
+
+  setLock(key) {
+    this.locks.set(key, true);
+  }
+
+  releaseLock(key) {
+    this.locks.delete(key);
   }
 
   async initialize() {
     console.log('[Cache] Initializing cache...');
-    try {
-      console.log('[Cache] Reading base places...');
-      const basePlacesData = await FileUtils.getBasePlaces(); // data/base_places.json 읽기
-      console.log('[Cache] Read base places data:', basePlacesData ? 'Data received' : 'No data');
-  
-      // base_places.json이 { "places": [...] } 구조라고 가정하고 처리
-      if (basePlacesData && Array.isArray(basePlacesData.places)) {
-        console.log(`[Cache] Populating cache with ${basePlacesData.places.length} places...`);
+    let retryCount = 0;
+    
+    while (retryCount < config.cache.maxRetries) {
+      try {
+        // Promise.all을 사용하여 병렬로 데이터 로드
+        const [basePlacesData, frequentPlaces] = await Promise.all([
+          FileUtils.getBasePlaces(),
+          FileUtils.readJSON('data/frequent_places.json')
+        ]);
+        
+        // 데이터 유효성 검사
+        if (!basePlacesData?.places) {
+          throw new Error('Invalid base_places.json structure');
+        }
+
+        // places Map 초기화
+        this.places.clear();
         basePlacesData.places.forEach(place => {
-          if (place && place.id) { // place 객체와 id 유효성 검사
-            this.places.set(String(place.id), place); // ★★★ place.id ("place_1" 등)를 키로 사용 ★★★
-          } else {
-            console.warn('[Cache] Invalid place data found:', place);
+          if (place?.id) {
+            this.places.set(String(place.id), place);
           }
         });
-        console.log(`[Cache] Populated cache map size: ${this.places.size}`);
-      } else {
-        console.warn('[Cache] base_places.json structure is not { "places": [...] } or places array is missing.');
+
+        // frequentPlaces 초기화
+        this.frequentPlaces = Array.isArray(frequentPlaces) ? frequentPlaces : [];
+
+        // 초기화 완료 로깅
+        console.log(`[Cache] Initialized with ${this.places.size} places and ${this.frequentPlaces.length} frequent places`);
+        break;
+      } catch (error) {
+        retryCount++;
+        if (retryCount === config.cache.maxRetries) {
+          console.error('[Cache] Initialization failed after retries:', error);
+          throw error;
+        }
+        console.log(`[Cache] Retry ${retryCount}/${config.cache.maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
       }
-      // ... variableData 처리 및 sync ...
-       console.log('[Cache] Cache initialization completed successfully.');
-    } catch (error) {
-      console.error('[Cache] Cache initialization failed:', error.stack || error);
     }
   }
 
@@ -42,36 +72,41 @@ class Cache {
   }
 
   async sync() {
-    if (this.syncInProgress) return;
+    if (this.syncInProgress) {
+      console.log('[Cache] Sync already in progress, skipping...');
+      return;
+    }
     
-    try {
-      this.syncInProgress = true;
-      
-      const variableData = Object.fromEntries(this.variableData);
-      await FileUtils.updateVariableData(variableData);
-      
-      console.log('캐시 동기화 완료');
-    } catch (error) {
-      console.error('캐시 동기화 실패:', error);
-    } finally {
-      this.syncInProgress = false;
+    let retryCount = 0;
+    
+    while (retryCount < config.cache.maxRetries) {
+      try {
+        this.syncInProgress = true;
+        console.log('[Cache] Starting sync...');
+        
+        // 동기화 작업
+        await Promise.all([
+          FileUtils.writeJSON('data/frequent_places.json', this.frequentPlaces)
+        ]);
+        
+        console.log('[Cache] Sync completed successfully');
+        break;
+      } catch (error) {
+        retryCount++;
+        if (retryCount === config.cache.maxRetries) {
+          console.error('[Cache] Sync failed after retries:', error);
+          break;
+        }
+        console.log(`[Cache] Retry ${retryCount}/${config.cache.maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      } finally {
+        this.syncInProgress = false;
+      }
     }
   }
 
   getPlace(id) {
     return this.places.get(id);
-  }
-
-  getVariableData(id) {
-    return this.variableData.get(id);
-  }
-
-  setVariableData(id, data) {
-    this.variableData.set(id, {
-      ...data,
-      lastUpdated: new Date().toISOString()
-    });
-    this.sync(); // 변경사항이 있을 때마다 동기화 시도
   }
 }
 

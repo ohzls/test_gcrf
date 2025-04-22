@@ -1,0 +1,130 @@
+swagger: '2.0'
+info:
+  title: Predictourist API
+  description: API for tourist place recommendations
+  version: 1.0.0
+schemes:
+  - https
+produces:
+  - application/json
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: x-api-key
+    in: header
+security:
+  - api_key: []
+paths:
+  /api/places:
+    options:
+      summary: CORS preflight check for places
+      operationId: CorsPlaces
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places
+    get:
+      summary: Get place by ID
+      operationId: getPlace
+      security:
+        - api_key: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/search:
+    options:
+      summary: CORS preflight check for places search
+      operationId: CorsPlacesSearch
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/search
+    get:
+      summary: Search places
+      operationId: searchPlaces
+      security:
+        - api_key: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/search
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/update:
+    options:
+      summary: CORS preflight check for place update
+      operationId: CorsPlaceUpdate
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/update
+    post:
+      summary: Update place data
+      operationId: updatePlaceData
+      security:
+        - api_key: []
+      parameters:
+        - name: id
+          in: query
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            type: object
+            required:
+              - crowd
+              - weather
+            properties:
+              crowd:
+                type: number
+                description: Crowd level data
+              weather:
+                type: string
+                description: Weather information
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/update
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app
+
+  /api/places/frequent:
+    options:
+      summary: CORS preflight check for frequent places
+      operationId: CorsFrequentPlaces
+      responses:
+        '204':
+          description: CORS preflight acknowledgement
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/frequent
+    get:
+      summary: Get frequent places
+      operationId: getFrequentPlaces
+      security:
+        - api_key: []
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/api/places/frequent
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app

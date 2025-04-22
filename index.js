@@ -3,36 +3,38 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { Storage } from '@google-cloud/storage';
 import FileUtils from './fileUtils.js';
 import cache from './cache.js';
 import { updateFrequency } from './frequencyManager.js';
 import { updateFrequentPlaces, getFrequentPlaces } from './frequentUpdater.js';
-import { attachDynamicFields } from './generateData.js';
+import { handleError, AppError } from './errorHandler.js';
+import { logRequest } from './monitoring.js';
+import { config } from './config.js';
 
 const app = express();
 
+// CORS 설정
 const corsOptions = {
-  // 이전 x-google-cors의 allowOrigins와 동일하게 설정
-  origin: ["http://localhost:5173", "http://192.168.0.64:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
-  // 이전 x-google-cors의 allowMethods와 동일하게 설정 (OPTIONS 포함)
+  origin: config.cors.origins,
   methods: "GET, POST, OPTIONS",
-  // 이전 x-google-cors의 allowHeaders와 동일하게 설정
   allowedHeaders: "Authorization, Content-Type, x-api-key",
-  // 이전 x-google-cors의 exposeHeaders와 동일하게 설정
   exposedHeaders: "Content-Length, Content-Range",
-  // 이전 x-google-cors의 allowCredentials와 동일하게 설정
   credentials: true,
-  // 이전 x-google-cors의 maxAge와 동일하게 설정
   maxAge: 3600,
-  // Preflight 요청(OPTIONS)에 대한 성공 상태 코드 (중요)
-  optionsSuccessStatus: 204 // 또는 200
+  optionsSuccessStatus: 204
 };
 
-// CORS 설정
 app.use(cors(corsOptions));
-
 app.use(express.json());
+
+// 요청 제한 설정
+const apiLimiter = rateLimit(config.api.rateLimit);
+app.use('/api/', apiLimiter);
+
+// 요청 로깅
+app.use(logRequest);
 
 // Cloud Storage 인증 확인
 console.log('Cloud Storage 인증 확인...');
@@ -66,12 +68,12 @@ setInterval(async () => {
   }
 }, 5 * 60 * 1000); // 5분마다 업데이트
 
-// 장소 검색
-app.get('/api/places/search', async (req, res) => {
+// 장소 검색 (1차 호출)
+app.get('/api/places/search', async (req, res, next) => {
   try {
     const { query } = req.query;
-    if (!query) {
-      return res.status(400).json({ error: '검색어가 필요합니다.' });
+    if (!query || typeof query !== 'string') {
+      throw new AppError('유효하지 않은 검색어입니다.', 400);
     }
 
     const normalizedQuery = query.toLowerCase();
@@ -79,122 +81,95 @@ app.get('/api/places/search', async (req, res) => {
     // 1. 자주 검색되는 장소에서 검색
     const frequentPlaces = await getFrequentPlaces();
     const frequentResults = frequentPlaces.filter(place => {
-      // place 객체와 name 속성 유효성 검사
-      if (!place || typeof place.name !== 'string') return false;
-    
-      const normalizedQuery = query.toLowerCase(); // query는 이전에 정의됨
-    
+      if (!isValidPlace(place)) return false;
       const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-    
-      // address 필드 유효성 검사 추가 후 검색
-      const addressMatch = place.address && typeof place.address === 'string' &&
-                         place.address.toLowerCase().includes(normalizedQuery);
-    
-      // tags 필드가 존재하고 배열인지 확인 후 검색
-      const tagMatch = place.tags && Array.isArray(place.tags) &&
-                     place.tags.some(tag =>
-                         // tag 값 자체도 문자열인지 확인
-                         tag && typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery)
-                     );
-    
-      return nameMatch || addressMatch || tagMatch;
+      const addressMatch = place.address?.toLowerCase().includes(normalizedQuery);
+      return nameMatch || addressMatch;
     });    
 
     if (frequentResults.length > 0) {
-      return res.json(frequentResults.map(attachDynamicFields));
+      return res.json(frequentResults);
     }
 
     // 2. 전체 장소에서 검색
     const results = Array.from(cache.places.values())
       .filter(place => {
-        // place 객체와 name 속성 유효성 검사
-        if (!place || typeof place.name !== 'string') return false;
-      
-        const normalizedQuery = query.toLowerCase(); // query는 이전에 정의됨
-      
+        if (!isValidPlace(place)) return false;
         const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-      
-        // address 필드 유효성 검사 추가 후 검색
-        const addressMatch = place.address && typeof place.address === 'string' &&
-                           place.address.toLowerCase().includes(normalizedQuery);
-      
-        // tags 필드가 존재하고 배열인지 확인 후 검색
-        const tagMatch = place.tags && Array.isArray(place.tags) &&
-                       place.tags.some(tag =>
-                           // tag 값 자체도 문자열인지 확인
-                           tag && typeof tag === 'string' && tag.toLowerCase().includes(normalizedQuery)
-                       );
-      
-        return nameMatch || addressMatch || tagMatch;
-      })      
-      .map(place => ({
-        ...place,
-        currentCrowd: cache.getVariableData(place.id)?.crowd ?? 0
-      }));
+        const addressMatch = place.address?.toLowerCase().includes(normalizedQuery);
+        return nameMatch || addressMatch;
+      });
 
     res.json(results);
   } catch (error) {
-    console.error('검색 중 오류 발생:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    next(error);
   }
 });
 
 // 장소 상세 정보
-app.get('/api/places', async (req, res) => {
+app.get('/api/places/details', async (req, res, next) => {
   try {
-    const { id } = req.query;
-    if (!id) {
-      return res.status(400).json({ error: '장소 ID가 필요합니다.' });
+    const { id, date } = req.query;
+    
+    // 입력값 검증
+    if (!id || typeof id !== 'string') {
+      throw new AppError('유효하지 않은 장소 ID입니다.', 400);
+    }
+
+    // 날짜 형식 검증
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new AppError('유효하지 않은 날짜 형식입니다.', 400);
     }
     
-    // 호출 빈도 업데이트
-    await updateFrequency(id);
-    
-    const place = cache.getPlace(id);
+    // 병렬 데이터 로드
+    const [place, details, variableData] = await Promise.all([
+      cache.getPlace(id),
+      FileUtils.getPlaceDetails(id),
+      FileUtils.getVariableData(id, date)
+    ]);
+
     if (!place) {
-      return res.status(404).json({ error: '장소를 찾을 수 없습니다.' });
+      throw new AppError('장소를 찾을 수 없습니다.', 404);
     }
 
-    const details = await FileUtils.getPlaceDetails(id);
-    const currentData = cache.getVariableData(id);
-
-    const enrichedData = attachDynamicFields({
-      ...place,
+    // 응답 데이터 구조화
+    res.json({
       ...details,
-      currentData
+      crowd: variableData?.crowd,
+      weather: variableData?.weather
     });
-
-    res.json(enrichedData);
   } catch (error) {
-    console.error('상세 정보 조회 중 오류 발생:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    next(error);
   }
 });
 
 // 자주 검색되는 장소 목록
-app.get('/api/places/frequent', async (req, res) => {
+app.get('/api/places/frequent', async (req, res, next) => {
   try {
     const frequentPlaces = await getFrequentPlaces();
-    const enrichedList = frequentPlaces.map(attachDynamicFields);
-    res.json(enrichedList);
+    res.json(frequentPlaces);
   } catch (error) {
-    console.error('자주 검색되는 장소 목록 조회 중 오류 발생:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    next(error);
   }
 });
 
 // 실시간 데이터 업데이트
-app.post('/api/places/update', async (req, res) => {
+app.post('/api/places/update', async (req, res, next) => {
   try {
     const { id } = req.query;
     const { crowd, weather } = req.body;
 
-    if (!id) {
-      return res.status(400).json({ error: '장소 ID가 필요합니다.' });
+    // 입력값 검증
+    if (!id || typeof id !== 'string') {
+      throw new AppError('유효하지 않은 장소 ID입니다.', 400);
     }
 
-    if (!crowd || !weather) {
-      return res.status(400).json({ error: '필수 데이터가 누락되었습니다.' });
+    if (!crowd?.hourly || !Array.isArray(crowd.hourly) || crowd.hourly.length !== 24) {
+      throw new AppError('유효하지 않은 혼잡도 데이터입니다.', 400);
+    }
+
+    if (!weather || typeof weather !== 'string') {
+      throw new AppError('유효하지 않은 날씨 데이터입니다.', 400);
     }
 
     const currentData = {
@@ -203,42 +178,18 @@ app.post('/api/places/update', async (req, res) => {
       lastUpdated: new Date().toISOString()
     };
 
-    cache.setVariableData(id, currentData);
-    await FileUtils.updateVariableData(Object.fromEntries(cache.variableData));
-
-    res.json({ success: true });
+    await FileUtils.updateVariableData(id, currentData);
+    res.json({ status: 'ok' });
   } catch (error) {
-    console.error('데이터 업데이트 중 오류 발생:', error);
-    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    next(error);
   }
 });
 
 // 에러 처리 미들웨어
-app.use((err, req, res, next) => {
-  console.error('에러 발생:', err);
-  
-  const errorResponse = {
-    success: false,
-    error: {
-      code: err.code || 'INTERNAL_SERVER_ERROR',
-      message: err.message || '서버 오류가 발생했습니다.',
-      details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    }
-  };
-
-  res.status(err.status || 500).json(errorResponse);
-});
+app.use(handleError);
 
 // 서버 시작
-const PORT = process.env.PORT || 8080;
-console.log('서버 시작 시도...');
-console.log(`PORT: ${PORT}`);
-
-try {
-  app.listen(PORT, () => {
-    console.log(`서버가 포트 ${PORT}에서 실행 중입니다.`);
-  });
-} catch (error) {
-  console.error('서버 시작 실패:', error);
-  process.exit(1);
-}
+const port = process.env.PORT || 8080;
+app.listen(port, () => {
+  console.log(`서버가 포트 ${port}에서 실행 중입니다.`);
+});

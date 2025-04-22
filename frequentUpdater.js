@@ -2,76 +2,112 @@
 
 import { readJSON, writeJSON } from './fileUtils.js';
 import cache from './cache.js';
+import { measurePerformance } from './monitoring.js';
+import { AppError } from './errorHandler.js';
 
+// 상수 정의
 const PLACES_FILE = 'data/base_places.json';
 const FREQUENT_FILE = 'data/frequent_places.json';
-const FREQUENT_THRESHOLD = 20;  // 예시: 호출 빈도가 20 이상인 관광지만 자주 호출된 곳으로 처리
+const FREQUENCY_FILE = 'data/frequency.json';
+const FREQUENT_THRESHOLD = 20;
 
-async function updateFrequentPlaces() {
-  const logPrefix = `[${new Date().toISOString()}] [FrequentUpdater:updateFrequentPlaces]`;
+// 유틸리티 함수
+function isValidPlace(place) {
+  return place && typeof place.id === 'string' && typeof place.name === 'string';
+}
+
+function validatePlaceData(place) {
+  const requiredFields = ['id', 'name', 'address'];
+  const missingFields = requiredFields.filter(field => !place?.[field]);
+  
+  return {
+    isValid: missingFields.length === 0,
+    missingFields
+  };
+}
+
+const updateFrequentPlaces = measurePerformance(async function updateFrequentPlaces() {
+  const logPrefix = `[${new Date().toISOString()}] [FrequentUpdater]`;
+  const lockKey = 'frequent_places_update';
+  
+  if (cache.getLock(lockKey)) {
+    console.log(`${logPrefix} Update already in progress`);
+    return;
+  }
+  
   try {
+    cache.setLock(lockKey);
     console.log(`${logPrefix} Starting update.`);
-    // base_places.json과 frequency.json을 읽는 부분은 그대로 둡니다. readJSON이 오류 시 {} 반환.
-    const allPlacesData = await readJSON(PLACES_FILE);
-    const frequencyData = await readJSON('data/frequency.json');
+    
+    // 병렬 데이터 로드
+    const [allPlacesData, frequencyData] = await Promise.all([
+      readJSON(PLACES_FILE),
+      readJSON(FREQUENCY_FILE)
+    ]);
 
-    // allPlacesData가 { places: [...] } 구조인지, 아니면 [...] 구조인지 확인 필요.
-    // 이전 base_places.json 내용을 바탕으로 { places: [...] } 구조라고 가정.
-    const placesArray = (allPlacesData && Array.isArray(allPlacesData.places)) ? allPlacesData.places : [];
-    if (!allPlacesData || !Array.isArray(allPlacesData.places)) {
-        console.warn(`${logPrefix} Invalid structure or no places array in ${PLACES_FILE}`);
+    // 데이터 유효성 검사
+    if (!allPlacesData?.places) {
+      throw new AppError('Invalid places data structure', 500);
     }
 
-    const frequentPlaces = placesArray.filter(place => {
-      // frequencyData가 {} 일 경우를 대비하여 || 0 사용
-      const count = (frequencyData && place && place.id && frequencyData[String(place.id)]) || 0;
-      return count >= FREQUENT_THRESHOLD;
-    });
+    // 필터링 로직 개선
+    const frequentPlaces = allPlacesData.places
+      .filter(isValidPlace)
+      .filter(place => {
+        const validation = validatePlaceData(place);
+        if (!validation.isValid) {
+          console.warn(`${logPrefix} Invalid place data:`, validation.missingFields);
+          return false;
+        }
+        return (frequencyData?.[place.id] || 0) >= FREQUENT_THRESHOLD;
+      })
+      .map(place => ({
+        id: place.id,
+        name: place.name,
+        address: place.address,
+        averageCrowd: place.averageCrowd
+      }));
 
     console.log(`${logPrefix} Found ${frequentPlaces.length} frequent places. Writing to ${FREQUENT_FILE}`);
-    // frequentPlaces는 항상 배열이므로 그대로 writeJSON 호출 가능
+    
+    // 파일 저장 및 캐시 업데이트
     await writeJSON(FREQUENT_FILE, frequentPlaces);
-    // 캐시 업데이트 (배열로 업데이트)
     cache.frequentPlaces = frequentPlaces;
-    console.log(`${logPrefix} Update complete.`);
 
     return frequentPlaces;
   } catch (error) {
-    console.error(`${logPrefix} Error:`, error.stack || error);
-    // 실패 시 빈 배열 반환하거나 오류를 다시 throw 할 수 있음
-    return [];
+    console.error(`${logPrefix} Update failed:`, error);
+    throw error;
+  } finally {
+    cache.releaseLock(lockKey);
   }
-}
+});
 
-async function getFrequentPlaces() {
-  const logPrefix = `[${new Date().toISOString()}] [FrequentUpdater:getFrequentPlaces]`; // Optional: For better logging
+const getFrequentPlaces = measurePerformance(async function getFrequentPlaces() {
+  const logPrefix = `[${new Date().toISOString()}] [FrequentUpdater]`;
   try {
-    // Check cache first - ensure it's an array too
+    // 캐시 확인
     if (cache.frequentPlaces && Array.isArray(cache.frequentPlaces)) {
       console.log(`${logPrefix} Cache hit.`);
       return cache.frequentPlaces;
     }
-    console.log(`${logPrefix} Cache miss or invalid cache. Reading from file: ${FREQUENT_FILE}`);
 
-    const dataFromFile = await readJSON(FREQUENT_FILE); // readJSON returns {} on error/empty
+    console.log(`${logPrefix} Cache miss. Reading from file: ${FREQUENT_FILE}`);
+    const dataFromFile = await readJSON(FREQUENT_FILE);
 
-    // Check if dataFromFile is actually an array
     if (dataFromFile && Array.isArray(dataFromFile)) {
-      console.log(`${logPrefix} Successfully read and parsed array from ${FREQUENT_FILE}. Length: ${dataFromFile.length}`);
-      cache.frequentPlaces = dataFromFile; // Update cache with the valid array
+      console.log(`${logPrefix} Successfully read ${dataFromFile.length} frequent places`);
+      cache.frequentPlaces = dataFromFile;
       return dataFromFile;
     } else {
-      // Handle cases where readJSON returned {} or non-array data
-      console.warn(`${logPrefix} Invalid or empty data read from ${FREQUENT_FILE}. Returning empty array.`);
-      cache.frequentPlaces = []; // Store empty array in cache
+      console.warn(`${logPrefix} Invalid or empty data read from ${FREQUENT_FILE}`);
+      cache.frequentPlaces = [];
       return [];
     }
   } catch (error) {
-    // This catch block might be less likely to be hit now if readJSON handles errors,
-    // but keep it for unexpected issues.
-    console.error(`${logPrefix} Error fetching frequent places:`, error.stack || error);
-    return []; // Return empty array on any unexpected error
+    console.error(`${logPrefix} Error fetching frequent places:`, error);
+    throw error;
   }
-}
+});
 
 export { updateFrequentPlaces, getFrequentPlaces };

@@ -71,8 +71,9 @@ class FileUtils {
     return this.readJSON(`data/place_details/${placeId}.json`);
   }
 
-  static async getVariableData() {
-    return this.readJSON('data/variable_data.json');
+  static async getVariableData(placeId, date) {
+    const dateStr = date ? date.replace(/-/g, '') : new Date().toISOString().slice(2, 10);
+    return this.readJSON(`data/variable_data/${dateStr}/${placeId}.json`);
   }
 
   static async updateBasePlaces(data) {
@@ -83,8 +84,9 @@ class FileUtils {
     await this.writeJSON(`data/place_details/${placeId}.json`, data);
   }
 
-  static async updateVariableData(data) {
-    await this.writeJSON('data/variable_data.json', data);
+  static async updateVariableData(placeId, data) {
+    const dateStr = new Date().toISOString().slice(2, 10);
+    await this.writeJSON(`data/variable_data/${dateStr}/${placeId}.json`, data);
   }
 }
 

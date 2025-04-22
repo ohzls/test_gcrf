@@ -1,0 +1,54 @@
+swagger: '2.0'
+info:
+  title: Predictourist API
+  description: API for tourist place recommendations
+  version: 1.0.0 # 버전명 등은 실제 사용하시는 버전에 맞게 수정하세요 (예: v6)
+schemes:
+  - https
+produces:
+  - application/json
+paths:
+  /places:
+    options: # <--- OPTIONS 블록 추가
+      summary: CORS preflight check for places
+      operationId: CorsPlaces # operationId 변경 가능
+      responses:
+        '204': # 또는 '200' - 백엔드가 응답하는 대로
+          description: CORS preflight acknowledgement
+      x-google-backend: # <--- OPTIONS 요청도 백엔드로 전달
+        address: https://test-gcrf-485738800168.us-central1.run.app/places
+        # options 에는 jwt_audience 불필요
+    get:
+      summary: Get place by ID
+      operationId: getPlace
+      parameters:
+        - name: id
+          in: query
+          required: true
+          type: string
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/places
+        # --- jwt_audience 추가 ---
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app # 백엔드 서비스의 기본 URL
+  /frequentPlaces:
+    options: # <--- OPTIONS 블록 추가
+      summary: CORS preflight check for frequentPlaces
+      operationId: CorsFrequentPlaces # operationId 변경 가능
+      responses:
+        '204': # 또는 '200'
+          description: CORS preflight acknowledgement
+      x-google-backend: # <--- OPTIONS 요청도 백엔드로 전달
+        address: https://test-gcrf-485738800168.us-central1.run.app/frequentPlaces
+    get:
+      summary: Get frequent places
+      operationId: getFrequentPlaces
+      responses:
+        '200':
+          description: Successful response
+      x-google-backend:
+        address: https://test-gcrf-485738800168.us-central1.run.app/frequentPlaces
+        # --- jwt_audience 추가 ---
+        jwt_audience: https://test-gcrf-485738800168.us-central1.run.app # 백엔드 서비스의 기본 URL
