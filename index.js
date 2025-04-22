@@ -14,7 +14,7 @@ const app = express();
 
 const corsOptions = {
   // 이전 x-google-cors의 allowOrigins와 동일하게 설정
-  origin: ["http://localhost:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
+  origin: ["http://localhost:5173", "http://192.168.0.64:5173", "https://seoseongwon.gitlab.io", "https://predictourist.com"],
   // 이전 x-google-cors의 allowMethods와 동일하게 설정 (OPTIONS 포함)
   methods: "GET, POST, OPTIONS",
   // 이전 x-google-cors의 allowHeaders와 동일하게 설정
