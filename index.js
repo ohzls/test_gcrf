@@ -26,6 +26,8 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
+app.set('trust proxy', 1); // Google Cloud 환경에서는 보통 1로 설정
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
