@@ -198,6 +198,45 @@ app.get('/api/places/search', async (req, res, next) => {
   }
 });
 
+// --- ★★★ 신규 엔드포인트 추가: 장소 좌표 정보 조회 (2단계 호출용) ★★★ ---
+app.get('/api/places/coordinates', async (req, res, next) => {
+  try {
+    const { id } = req.query;
+
+    // 1. 입력값 검증 (ID 필수)
+    if (!id || typeof id !== 'string') {
+      throw new AppError('유효하지 않은 장소 ID입니다.', 400);
+    }
+
+    // 2. 장소 상세 정보 파일 읽기 시도
+    // FileUtils.getPlaceDetails는 전체 상세 정보를 읽어옴.
+    // 좌표만 필요하지만, 효율성을 위해 일단 전체 파일을 읽고 필요한 부분만 추출.
+    // (만약 place_details.json 파일이 매우 크다면 좌표만 따로 저장/읽는 방식 고려)
+    console.log(`[Coordinates] Attempting to fetch details for coordinates. ID: ${id}`);
+    const details = await FileUtils.getPlaceDetails(id); // 기존 함수 재활용
+
+    // 3. 좌표 정보 추출 및 확인
+    // **주의:** 실제 place_details.json 파일에 'coordinates' 키 아래에
+    //        { lat: 숫자, lng: 숫자 } 형태의 데이터가 있다고 가정합니다.
+    //        만약 데이터 구조가 다르거나 필드가 없다면 이 부분을 수정해야 합니다.
+    const coordinates = details?.coordinates; // 옵셔널 체이닝 사용
+    if (!coordinates || typeof coordinates.lat !== 'number' || typeof coordinates.lng !== 'number') {
+      // 파일이 없거나(readJSON이 {} 반환), coordinates 필드가 없거나, 형식이 잘못된 경우
+      console.warn(`[Coordinates] Coordinates data not found or invalid for ID: ${id}. Details fetched:`, details);
+      // 404 에러를 반환하여 클라이언트에게 정보 없음을 알림
+      throw new AppError('좌표 정보를 찾을 수 없습니다.', 404);
+    }
+
+    // 4. 좌표 정보만 JSON으로 응답
+    console.log(`[Coordinates] Returning coordinates for ID: ${id}`, coordinates);
+    res.json(coordinates); // 예: { "lat": 37.5796, "lng": 126.9770 }
+
+  } catch (error) {
+    // AppError 또는 기타 에러는 중앙 에러 핸들러로 전달
+    next(error);
+  }
+});
+
 // 장소 상세 정보
 app.get('/api/places/details', async (req, res, next) => {
   try {
