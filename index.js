@@ -202,6 +202,7 @@ app.get('/api/places/search', async (req, res, next) => {
 
 // --- ★★★ 신규 엔드포인트 추가: 장소 좌표 정보 조회 (2단계 호출용) ★★★ ---
 app.get('/api/places/coordinates', async (req, res, next) => {
+  console.log('[DEBUG] /api/places/coordinates route defined successfully');
   try {
     const { id } = req.query;
 
