@@ -85,41 +85,81 @@ function isValidPlace(place) {
   return true; // 기본 검사를 통과하면 유효하다고 간주
 }
 
-// 장소 검색 (1차 호출)
+// 장소 검색 (1차 호출) - 수정됨
 app.get('/api/places/search', async (req, res, next) => {
   try {
-    const { query } = req.query;
+    // 1. 쿼리 파라미터 가져오기 (showAll 추가) 및 기본 검증
+    const { query, showAll } = req.query; // showAll 파라미터 읽기
     if (!query || typeof query !== 'string') {
       throw new AppError('유효하지 않은 검색어입니다.', 400);
     }
-
     const normalizedQuery = query.toLowerCase();
-    
-    // 1. 자주 검색되는 장소에서 검색
-    const frequentPlaces = await getFrequentPlaces();
-    const frequentResults = frequentPlaces.filter(place => {
-      if (!isValidPlace(place)) return false;
-      const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-      const addressMatch = place.address?.toLowerCase().includes(normalizedQuery);
-      return nameMatch || addressMatch;
-    });    
+    const isShowAll = showAll === 'true'; // showAll 파라미터를 boolean으로 변환
 
-    if (frequentResults.length > 0) {
-      return res.json(frequentResults);
-    }
-
-    // 2. 전체 장소에서 검색
-    const results = Array.from(cache.places.values())
-      .filter(place => {
+    // 2. showAll=false일 경우 (기본 동작): 자주 찾는 장소 먼저 검색
+    if (!isShowAll) {
+      const frequentPlaces = await getFrequentPlaces();
+      const frequentResults = frequentPlaces.filter(place => {
+        // 검색어와 매칭되는지 확인 (이제 isValidPlace 함수 사용 가능)
         if (!isValidPlace(place)) return false;
         const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-        const addressMatch = place.address?.toLowerCase().includes(normalizedQuery);
+        // 주소도 문자열일 경우에만 검색 (안전성 강화)
+        const addressMatch = (typeof place.address === 'string')
+                           ? place.address.toLowerCase().includes(normalizedQuery)
+                           : false;
         return nameMatch || addressMatch;
       });
 
-    res.json(results);
+      // 자주 찾는 목록에서 결과가 있으면, 해당 결과만 반환 (frequentOnly: true 플래그 추가)
+      if (frequentResults.length > 0) {
+        // ★★★ 응답 형식 변경: results와 frequentOnly 플래그 포함 ★★★
+        return res.json({ results: frequentResults, frequentOnly: true });
+      }
+      // 자주 찾는 목록에 결과가 없으면 아래 전체 검색으로 넘어감
+    }
+
+    // 3. showAll=true 이거나, 자주 찾는 목록에 결과가 없는 경우: 전체 장소 검색 및 정렬
+    // 디버깅을 위한 로그 추가
+    console.log(`[Search] Frequent places empty or showAll=true. Performing full search for query: "${query}"`);
+
+    // 3-1. 전체 장소 목록 가져와서 필터링
+    const allPlaces = Array.from(cache.places.values()); // 캐시에서 전체 장소 가져오기
+    let results = allPlaces.filter(place => {
+      // 검색어와 매칭되는지 확인 (이제 isValidPlace 함수 사용 가능)
+      if (!isValidPlace(place)) return false;
+      const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
+      // 주소도 문자열일 경우에만 검색 (안전성 강화)
+      const addressMatch = (typeof place.address === 'string')
+                         ? place.address.toLowerCase().includes(normalizedQuery)
+                         : false;
+      return nameMatch || addressMatch;
+    });
+
+    // 3-2. 빈도수(frequency) 기준으로 결과 정렬
+    try {
+      // frequency 데이터 가져오기 (cache.js에 Map 형태로 저장되어 있다고 가정)
+      // cache.frequencies가 없으면 정렬하지 않거나 기본 정렬 유지
+      const frequencies = cache.frequencies || new Map();
+      console.log(`[Search] Sorting ${results.length} results based on frequency.`);
+
+      results.sort((a, b) => {
+        const freqA = frequencies.get(a.id) || 0; // 빈도수 조회, 없으면 0
+        const freqB = frequencies.get(b.id) || 0; // 빈도수 조회, 없으면 0
+        // 빈도수가 높은 순서(내림차순)로 정렬
+        return freqB - freqA;
+      });
+      console.log(`[Search] Sorting complete.`);
+
+    } catch (sortError) {
+      // 정렬 중 에러 발생 시 로그 남기고, 정렬되지 않은 결과를 반환할 수도 있음
+      console.error('[Search] Error during frequency sorting:', sortError);
+    }
+
+    // ★★★ 응답 형식 변경: results와 frequentOnly: false 플래그 포함 ★★★
+    res.json({ results: results, frequentOnly: false });
+
   } catch (error) {
-    next(error);
+    next(error); // 에러는 중앙 에러 핸들러로 전달
   }
 });
 
