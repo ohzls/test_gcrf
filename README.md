@@ -27,28 +27,43 @@ backend/
 
 ## API 호출 단계
 
-### 1. 장소 검색 (1차 호출)
+### 1. 장소 검색
 - 엔드포인트: `/api/places/search`
-- 반환 데이터: 장소명, 주소, 평균 혼잡도
-- 데이터 소스: `frequent_places.json` (우선), `base_places.json` (2차)
-- 검색 최적화: 자주 검색되는 장소를 우선적으로 검색하여 응답 속도 향상
+- Query Parameters:
+  - `query`: 검색어 (필수, string)
+  - `showAll`: 초기 검색 결과 외 전체 결과 요청 여부 (선택 사항, boolean, 기본값: false). `true`로 설정 시 자주 찾는 장소 필터링을 건너뛰고, 이미 반환된 자주 찾는 장소를 제외한 나머지 결과를 빈도순 정렬하여 반환합니다.
+- 반환 데이터: `{ results: PlaceSearchResult[], frequentOnly: boolean }` 형태.
+  - `results`: 장소 객체 배열 (id, name, address?, averageCrowd?, highlightedName? 포함). 초기 검색 시 자주 찾는 장소만 포함될 수 있음.
+  - `frequentOnly`: `true`이면 `results`가 자주 찾는 장소 목록에서만 나온 결과임을 의미 (프론트엔드에서 '더보기' 버튼 표시 여부 판단용). `false`이면 전체 목록 검색 결과(또는 그 일부)임을 의미.
+- 데이터 소스: `frequent_places.json` (우선), `base_places.json` (캐시)
+- 특징:
+  - 초기 검색 시 자주 검색되는 장소를 우선적으로 반환하여 응답 속도 향상.
+  - `showAll=false`이고 자주 찾는 결과가 없을 경우, 또는 `showAll=true`일 경우 전체 장소 목록에서 검색하며 `frequency.json` 기반으로 **빈도순 정렬** 적용.
 
-### 2. 장소 상세 정보
+### 2. 장소 좌표 조회
+- 엔드포인트: `/api/places/coordinates`
+- Query Parameters:
+  - `id`: 장소 ID (필수, string)
+- 반환 데이터: `{ lat: number, lng: number }` 형태의 좌표 객체.
+- 데이터 소스: `place_details/{place_id}.json` 파일 내 `coordinates` 필드.
+- 목적: 지도 표시에 필요한 좌표 정보만 빠르게 로드 (단계별 로딩 2단계).
+
+### 3. 장소 상세 정보
 - 엔드포인트: `/api/places/details`
 - Query Parameters:
-  - `id`: 장소 ID (필수)
-  - `date`: 조회할 날짜 (YYYY-MM-DD 형식, 기본값: 오늘)
-- 반환 데이터: 상세 설명, 영업시간, 연락처, 해당 날짜의 혼잡도, 날씨
+  - `id`: 장소 ID (필수, string)
+  - `date`: 조회할 날짜 (YYYY-MM-DD 형식, string, 기본값: 오늘)
+- 반환 데이터: **해당 장소의 전체 상세 정보.** `place_details/{id}.json`의 모든 정적 정보(**좌표 포함**)와 `variable_data/{YYMMDD}/{id}.json`의 **해당 날짜 변동 정보(시간대별 혼잡도 `crowd.hourly`, 날씨 `weather`)**가 병합되어 반환됩니다.
 - 데이터 소스: `place_details/{place_id}.json`, `variable_data/{YYMMDD}/{place_id}.json`
-- 병렬 데이터 로드: 상세 정보와 변동 데이터를 동시에 로드하여 응답 시간 최적화
+- 특징: 병렬 데이터 로드하여 응답 시간 최적화 (단계별 로딩 3단계).
 
-### 3. 자주 검색되는 장소 목록
+### 4. 자주 검색되는 장소 목록
 - 엔드포인트: `/api/places/frequent`
 - 반환 데이터: 자주 검색되는 장소 목록
 - 데이터 소스: `frequent_places.json`
 - 업데이트 주기: 5분마다 자동 업데이트
 
-### 4. 실시간 데이터 업데이트
+### 5. 실시간 데이터 업데이트
 - 엔드포인트: `/api/places/update`
 - Method: POST
 - Query Parameters:
@@ -89,12 +104,26 @@ backend/
   "address": "서울특별시 종로구 사직로 161",
   "description": "조선왕조 제일의 법궁으로, 1395년 태조 이성계가 창건했습니다.",
   "category": "궁궐",
+  "coordinates": {       // ★★★ 좌표 필드 추가 ★★★
+    "lat": 37.579615,
+    "lng": 126.977011
+  },
   "openingHours": {
     "weekday": "09:00-17:00",
     "weekend": "09:00-17:00",
+    "exceptions": {
+      "june_august": {
+        "weekday": "09:00-18:30",
+        "weekend": "09:00-18:30"
+      },
+      "november_january": {
+        "weekday": "09:00-17:30",
+        "weekend": "09:00-17:30"
+      }
+    },
     "closeDays": [
       {
-        "dayOfWeek": 2,
+        "dayOfWeek": [2],
         "type": "weekly"
       }
     ]
@@ -134,7 +163,9 @@ backend/
     "hourly": [10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 80, 75, 70, 65, 60, 55, 50, 45],
     "lastUpdated": "2025-04-22T10:00:00.000Z"
   },
-  "weather": "맑음"
+  "weather": {
+    "status": "맑음",
+    "temperature": 23,
 }
 ```
 - 날짜별 폴더와 장소별 파일로 구성된 실시간 데이터
