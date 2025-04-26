@@ -266,6 +266,14 @@ app.get('/api/places/details', async (req, res, next) => {
       throw new AppError('장소를 찾을 수 없습니다.', 404);
     }
 
+  try {
+    await updateFrequency(id); // frequencyManager.js의 함수 호출
+      console.log(`[Frequency] Updated frequency for place ID: ${id}`);
+    } catch (freqError) {
+      console.error(`[Frequency] Failed to update frequency for place ID: ${id}`, freqError);
+      // 빈도수 업데이트 실패는 전체 요청 실패로 간주하지 않음
+    }
+
     // 응답 데이터 구조화
     res.json({
       ...details,
