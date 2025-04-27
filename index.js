@@ -88,6 +88,8 @@ async function fetchKtoApiDirectly(areaCode, sigunguCode, tourismName) {
     }
 
     const data = await response.json();
+    
+    console.log('[KTO Helper] RAW KTO JSON Response:', JSON.stringify(data, null, 2));
 
     // KTO API 결과 코드 확인
     if (data.response?.header?.resultCode !== '0000') {

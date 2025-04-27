@@ -1,7 +1,6 @@
 // frequencyManager.js
 
 import { readJSON, writeJSON } from './fileUtils.js';
-import cache from './cache.js';
 import { updateFrequentPlaces } from './frequentUpdater.js';
 
 const FREQUENCY_FILE = 'data/frequency.json';

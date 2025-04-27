@@ -1,7 +1,6 @@
 // cache.js
 import FileUtils from './fileUtils.js';
 import { config } from './config.js';
-import { measurePerformance } from './monitoring.js';
 
 class Cache {
   constructor() {
