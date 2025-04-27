@@ -45,7 +45,7 @@ app.get('/', (req, res) => {
 
 
 // --- ★★★ KTO API 직접 호출 헬퍼 함수 (별도 파일 분리 권장) ★★★ ---
-async function fetchKtoApiDirectly(areaCode, sigunguCode, tourismName) {
+async function fetchKtoApiDirectly(areaCd, signguCd, tourismName) {
   const ktoServiceKey = "zXAUUzWGYyqVJ2Sjs5%2FYMAuZSvrLnCVkAXE9mQBT5wYhg9IembK9FDYBwEY42xDZIwHkMHWH%2Bf1sreY1J9Exrw%3D%3D";
   if (!ktoServiceKey) {
     console.error('[KTO Helper] KTO 서비스 키가 환경 변수에 설정되지 않았습니다.');
@@ -64,8 +64,8 @@ async function fetchKtoApiDirectly(areaCode, sigunguCode, tourismName) {
   const params = new URLSearchParams({
       MobileOS: mobileOS,
       MobileApp: mobileApp,
-      areaCd: areaCode,
-      sigunguCd: sigunguCode,
+      areaCd: areaCd,
+      signguCd: signguCd,
       _type: 'json',
       numOfRows: '1000' // 충분히 큰 값
   });
@@ -342,7 +342,7 @@ app.get('/api/places/details', async (req, res, next) => {
 
     let ktoCongestionRate = null; // 최종 반환될 혼잡도 값
 
-    if (details.areaCode && details.sigunguCode) { // 필수 코드 확인
+    if (details.areaCd && details.signguCd) { // 필수 코드 확인
       try {
         // 3-1. GCS 캐시에서 KTO 데이터 조회 시도
         const cachedKtoData = await getKtoCongestionData(YYMMDD, id); // 수정된 FileUtils 함수 사용
@@ -354,8 +354,8 @@ app.get('/api/places/details', async (req, res, next) => {
           console.log(`[KTO Cache] Cache MISS for place ${id} on ${YYMMDD}. Fetching from KTO API...`);
           // 3-2. 캐시 없으면 KTO API 호출 (헬퍼 함수 사용)
           const ktoApiResponse = await fetchKtoApiDirectly(
-            details.areaCode,
-            details.sigunguCode,
+            details.areaCd,
+            details.signguCd,
             details.name // tAtsNm으로 사용될 관광지 이름
           );
 
@@ -388,7 +388,7 @@ app.get('/api/places/details', async (req, res, next) => {
              });
 
           } else {
-            console.warn(`[KTO API] No items received for ${details.name} (${details.areaCode}/${details.sigunguCode})`);
+            console.warn(`[KTO API] No items received for ${details.name} (${details.areaCd}/${details.signguCd})`);
           }
         }
       } catch (ktoError) {
@@ -397,7 +397,7 @@ app.get('/api/places/details', async (req, res, next) => {
         ktoCongestionRate = null;
       }
     } else {
-      console.warn(`[KTO] Missing areaCode or sigunguCode for place ${id}. Cannot fetch KTO data.`);
+      console.warn(`[KTO] Missing areaCd or signguCd for place ${id}. Cannot fetch KTO data.`);
     }
 
     // 응답 데이터 구조화
