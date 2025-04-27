@@ -313,8 +313,21 @@ app.get('/api/places/details', async (req, res, next) => {
     if (!id || typeof id !== 'string') {
       throw new AppError('유효하지 않은 장소 ID입니다.', 400);
     }
-
-    const YYMMDD = date ? date.replace(/-/g, '') : new Date().toISOString().split('T')[0].replace(/-/g, '');
+    let yyMMdd; // 변수 이름도 yyMMdd로 변경 권장
+    if (date) { // date는 'YYYY-MM-DD' 형식
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { // 날짜 형식 검증 추가
+           throw new AppError('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 여야 합니다.', 400);
+        }
+        // YYYY-MM-DD -> yyMMdd 변환
+        yyMMdd = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10);
+    } else { // 기본값: 오늘 날짜
+        const now = new Date();
+        const year = now.getFullYear().toString().slice(-2);
+        const month = (now.getMonth() + 1).toString().padStart(2, '0');
+        const day = now.getDate().toString().padStart(2, '0');
+        yyMMdd = year + month + day;
+    }
+    console.log(`[Details] Using date yyMMdd: ${yyMMdd}`);
 
     // 날짜 형식 검증
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -345,37 +358,41 @@ app.get('/api/places/details', async (req, res, next) => {
     if (details.areaCd && details.signguCd) { // 필수 코드 확인
       try {
         // 3-1. GCS 캐시에서 KTO 데이터 조회 시도
-        const cachedKtoData = await getKtoCongestionData(YYMMDD, id); // 수정된 FileUtils 함수 사용
+        const cachedKtoData = await getKtoCongestionData(yyMMdd, id); // 수정된 FileUtils 함수 사용
 
         if (cachedKtoData && cachedKtoData.congestionRate !== undefined && cachedKtoData.congestionRate !== null) {
-          console.log(`[KTO Cache] Cache HIT for place ${id} on ${YYMMDD}`);
+          console.log(`[KTO Cache] Cache HIT for place ${id} on ${yyMMdd}`);
           ktoCongestionRate = cachedKtoData.congestionRate;
         } else {
-          console.log(`[KTO Cache] Cache MISS for place ${id} on ${YYMMDD}. Fetching from KTO API...`);
+          console.log(`[KTO Cache] Cache MISS for place ${id} on ${yyMMdd}. Fetching from KTO API...`);
           // 3-2. 캐시 없으면 KTO API 호출 (헬퍼 함수 사용)
           const ktoApiResponse = await fetchKtoApiDirectly(
             details.areaCd,
             details.signguCd,
             details.name // tAtsNm으로 사용될 관광지 이름
           );
+          console.log('[DEBUG] ktoApiResponse (response.body) received:', JSON.stringify(ktoApiResponse, null, 2));
 
           if (ktoApiResponse?.items) {
             const items = ktoApiResponse.items;
-            const itemsToProcess = Array.isArray(items) ? items : [items];
+            console.log('[DEBUG] ktoApiResponse.items content:', JSON.stringify(items, null, 2));
+            const itemsToProcess = Array.isArray(items?.item) ? items.item : (items?.item ? [items.item] : []); // item 없을 경우 빈 배열 처리 추가
+            console.log(`[DEBUG] itemsToProcess length: ${itemsToProcess.length}`);
             const savePromises = []; // 비동기 저장을 위한 Promise 배열
 
             // 3-3. 받아온 30일치 데이터 처리 및 저장 (비동기 백그라운드)
             for (const item of itemsToProcess) {
-              const itemYYMMDD = item?.baseYmd;
-              if (itemYYMMDD) {
+              console.log(`[DEBUG] Inside save loop, processing date: ${item?.baseYmd}`);
+              const itemyyMMdd = item?.baseYmd;
+              if (itemyyMMdd) {
                 // 저장 로직을 Promise 배열에 추가
                  savePromises.push(
-                    saveKtoCongestionData(itemYYMMDD, id, item) // 수정된 FileUtils 함수 사용
-                      .catch(saveErr => console.error(`[KTO Save] Failed for ${id} on ${itemYYMMDD}:`, saveErr))
+                    saveKtoCongestionData(itemyyMMdd, id, item) // 수정된 FileUtils 함수 사용
+                      .catch(saveErr => console.error(`[KTO Save] Failed for ${id} on ${itemyyMMdd}:`, saveErr))
                  );
 
-                // 프론트가 요청한 날짜(YYMMDD)의 데이터 찾기
-                if (itemYYMMDD === YYMMDD && item.cnctrRate !== undefined) {
+                // 프론트가 요청한 날짜(yyMMdd)의 데이터 찾기
+                if (itemyyMMdd === yyMMdd && item.cnctrRate !== undefined) {
                   const rate = parseFloat(item.cnctrRate);
                   ktoCongestionRate = isNaN(rate) ? null : rate;
                 }
