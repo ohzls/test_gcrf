@@ -313,11 +313,9 @@ app.get('/api/places/details', async (req, res, next) => {
     if (!id || typeof id !== 'string') {
       throw new AppError('유효하지 않은 장소 ID입니다.', 400);
     }
-    let yyMMdd; // 변수 이름도 yyMMdd로 변경 권장
-    if (date) { // date는 'YYYY-MM-DD' 형식
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { // 날짜 형식 검증 추가
-           throw new AppError('유효하지 않은 날짜 형식입니다. YYYY-MM-DD 여야 합니다.', 400);
-        }
+    
+    let yyMMdd; // 사용할 날짜 변수 (yyMMdd 형식)
+    if (date) { // date는 'YYYY-MM-DD'
         // YYYY-MM-DD -> yyMMdd 변환
         yyMMdd = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10);
     } else { // 기본값: 오늘 날짜
@@ -328,11 +326,6 @@ app.get('/api/places/details', async (req, res, next) => {
         yyMMdd = year + month + day;
     }
     console.log(`[Details] Using date yyMMdd: ${yyMMdd}`);
-
-    // 날짜 형식 검증
-    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      throw new AppError('유효하지 않은 날짜 형식입니다.', 400);
-    }
     
     // 병렬 데이터 로드
     const [place, details, variableData] = await Promise.all([

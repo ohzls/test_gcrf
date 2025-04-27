@@ -58,9 +58,9 @@ class FileUtils {
     let dateStr;
     console.log(`[FileUtils] getVariableData: Using date: ${date}`);
     if (date) { // date는 'YYYY-MM-DD' 형식으로 가정
-        dateStr = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10); // YYMMDD 추출
+        dateStr = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10); // yyMMdd 추출
     } else { // 기본값: 오늘 날짜
-        dateStr = new Date().toISOString().slice(2, 8); // YYMMDD 추출 (T 포함 안 함)
+        dateStr = new Date().toISOString().slice(2, 8); // yyMMdd 추출 (T 포함 안 함)
     }
     console.log(`[FileUtils] getVariableData: Using dateStr: ${dateStr} for placeId: ${placeId}`);
     return this.readJSON(`data/variable_data/${dateStr}/${placeId}.json`);
@@ -81,25 +81,25 @@ class FileUtils {
   
   /**
    * 특정 장소/날짜의 KTO 혼잡도 데이터를 GCS에서 읽어옵니다.
-   * @param {string} YYmmdd - 날짜 (YYMMDD 형식)
+   * @param {string} yyMMdd - 날짜 (yyMMdd 형식)
    * @param {string} placeId - 서비스 내부 장소 ID
    * @returns {Promise<object | null>} 저장된 데이터 객체({ congestionRate: 값 }) 또는 null
    */
-  static async getKtoCongestionData(YYmmdd, placeId) {
-    // 파일 경로: kto/YYMMDD/{placeId}.json
-    const filePath = `kto/${YYmmdd}/${placeId}.json`;
+  static async getKtoCongestionData(yyMMdd, placeId) {
+    // 파일 경로: kto/yyMMdd/{placeId}.json
+    const filePath = `kto/${yyMMdd}/${placeId}.json`;
     return this.readJSON(filePath);
   }
 
   /**
    * KTO API로부터 받은 특정 날짜의 혼잡도 데이터를 GCS에 저장합니다.
-   * @param {string} YYmmdd - 날짜 (YYMMDD 형식)
+   * @param {string} yyMMdd - 날짜 (yyMMdd 형식)
    * @param {string} placeId - 서비스 내부 장소 ID
    * @param {object} rawItemData - KTO API 응답의 개별 item 객체 (cnctrRate 포함)
    */
-  static async saveKtoCongestionData(YYmmdd, placeId, rawItemData) {
-    // 파일 경로: kto/YYMMDD/{placeId}.json
-    const filePath = `kto/${YYmmdd}/${placeId}.json`;
+  static async saveKtoCongestionData(yyMMdd, placeId, rawItemData) {
+    // 파일 경로: kto/yyMMdd/{placeId}.json
+    const filePath = `kto/${yyMMdd}/${placeId}.json`;
 
     // 저장할 데이터 구성: { congestionRate: 값 }
     const rate = parseFloat(rawItemData?.cnctrRate);
