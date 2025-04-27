@@ -87,7 +87,7 @@ class FileUtils {
    */
   static async getKtoCongestionData(yyMMdd, placeId) {
     // 파일 경로: kto/yyMMdd/{placeId}.json
-    const filePath = `kto/${yyMMdd}/${placeId}.json`;
+    const filePath = `data/kto/${yyMMdd}/${placeId}.json`;
     return this.readJSON(filePath);
   }
 
@@ -99,7 +99,7 @@ class FileUtils {
    */
   static async saveKtoCongestionData(yyMMdd, placeId, rawItemData) {
     // 파일 경로: kto/yyMMdd/{placeId}.json
-    const filePath = `kto/${yyMMdd}/${placeId}.json`;
+    const filePath = `data/kto/${yyMMdd}/${placeId}.json`;
 
     // 저장할 데이터 구성: { congestionRate: 값 }
     const rate = parseFloat(rawItemData?.cnctrRate);
