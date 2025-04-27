@@ -62,12 +62,12 @@ async function fetchKtoApiDirectly(areaCd, signguCd, tourismName) {
 
   // 나머지 파라미터들 (requests 라이브러리 대신 직접 인코딩 필요 시 주의)
   const params = new URLSearchParams({
-      MobileOS: mobileOS,
-      MobileApp: mobileApp,
-      areaCd: areaCd,
-      signguCd: signguCd,
-      _type: 'json',
-      numOfRows: '1000' // 충분히 큰 값
+    MobileOS: mobileOS,
+    MobileApp: mobileApp,
+    areaCd: areaCd,
+    signguCd: signguCd,
+    _type: 'json',
+    numOfRows: '1000' // 충분히 큰 값
   });
   if (tourismName) {
     params.append('tAtsNm', tourismName);
@@ -88,7 +88,7 @@ async function fetchKtoApiDirectly(areaCd, signguCd, tourismName) {
     }
 
     const data = await response.json();
-    
+
     console.log('[KTO Helper] RAW KTO JSON Response:', JSON.stringify(data, null, 2));
 
     // KTO API 결과 코드 확인
@@ -171,8 +171,8 @@ app.get('/api/places/search', async (req, res, next) => {
         if (!isValidPlace(place)) return false;
         const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
         const addressMatch = (typeof place.address === 'string')
-                         ? place.address.toLowerCase().includes(normalizedQuery)
-                         : false;
+          ? place.address.toLowerCase().includes(normalizedQuery)
+          : false;
         return nameMatch || addressMatch;
       });
 
@@ -192,8 +192,8 @@ app.get('/api/places/search', async (req, res, next) => {
       if (!isValidPlace(place)) return false;
       const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
       const addressMatch = (typeof place.address === 'string')
-                       ? place.address.toLowerCase().includes(normalizedQuery)
-                       : false;
+        ? place.address.toLowerCase().includes(normalizedQuery)
+        : false;
       return nameMatch || addressMatch;
     });
 
@@ -209,13 +209,13 @@ app.get('/api/places/search', async (req, res, next) => {
       // 현재 쿼리로 필터링된 '자주 찾는 장소' 목록의 ID Set 생성 (중복 제거 및 빠른 검색 위함)
       const filteredFrequentIds = new Set(
         frequentPlaces // 위에서 이미 로드함
-            .filter(place => { // 동일한 필터링 로직 적용
-                if (!isValidPlace(place)) return false;
-                const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-                const addressMatch = (typeof place.address === 'string') ? place.address.toLowerCase().includes(normalizedQuery) : false;
-                return nameMatch || addressMatch;
-            })
-            .map(place => place.id)
+          .filter(place => { // 동일한 필터링 로직 적용
+            if (!isValidPlace(place)) return false;
+            const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
+            const addressMatch = (typeof place.address === 'string') ? place.address.toLowerCase().includes(normalizedQuery) : false;
+            return nameMatch || addressMatch;
+          })
+          .map(place => place.id)
       );
       console.log(`[Search] showAll=true: Found ${filteredFrequentIds.size} frequent place IDs matching query.`);
 
@@ -226,15 +226,15 @@ app.get('/api/places/search', async (req, res, next) => {
       // 나머지 아이템들만 빈도순 정렬
       resultsToReturn = remainingItems; // 정렬 전에 할당 (try-catch 안에서도 접근 가능하도록)
       try {
-          const frequencies = cache.frequencies || new Map();
-          resultsToReturn.sort((a, b) => { // remainingItems를 정렬
-              const freqA = frequencies.get(a.id) || 0;
-              const freqB = frequencies.get(b.id) || 0;
-              return freqB - freqA; // 빈도 높은 순
-          });
+        const frequencies = cache.frequencies || new Map();
+        resultsToReturn.sort((a, b) => { // remainingItems를 정렬
+          const freqA = frequencies.get(a.id) || 0;
+          const freqB = frequencies.get(b.id) || 0;
+          return freqB - freqA; // 빈도 높은 순
+        });
       } catch (sortError) {
-          console.error(`[Search] Error during frequency sorting (${sortTarget}):`, sortError);
-          // 정렬 실패 시 정렬 안된 remainingItems가 반환됨
+        console.error(`[Search] Error during frequency sorting (${sortTarget}):`, sortError);
+        // 정렬 실패 시 정렬 안된 remainingItems가 반환됨
       }
 
     } else {
@@ -242,17 +242,17 @@ app.get('/api/places/search', async (req, res, next) => {
       sortTarget = 'full results';
       // 이때는 전체 필터링 결과를 정렬해서 반환해야 함 (제외할 frequent 결과가 없음)
       resultsToReturn = filteredAll; // 정렬 전에 할당
-       try {
-          const frequencies = cache.frequencies || new Map();
-          resultsToReturn.sort((a, b) => { // filteredAll (전체 결과)를 정렬
-              const freqA = frequencies.get(a.id) || 0;
-              const freqB = frequencies.get(b.id) || 0;
-              return freqB - freqA; // 빈도 높은 순
-          });
-       } catch (sortError) {
-          console.error(`[Search] Error during frequency sorting (${sortTarget}):`, sortError);
-          // 정렬 실패 시 정렬 안된 filteredAll이 반환됨
-       }
+      try {
+        const frequencies = cache.frequencies || new Map();
+        resultsToReturn.sort((a, b) => { // filteredAll (전체 결과)를 정렬
+          const freqA = frequencies.get(a.id) || 0;
+          const freqB = frequencies.get(b.id) || 0;
+          return freqB - freqA; // 빈도 높은 순
+        });
+      } catch (sortError) {
+        console.error(`[Search] Error during frequency sorting (${sortTarget}):`, sortError);
+        // 정렬 실패 시 정렬 안된 filteredAll이 반환됨
+      }
     }
     console.log(`[Search] Sorting complete for ${sortTarget}. Returning ${resultsToReturn.length} items.`);
 
@@ -308,25 +308,19 @@ app.get('/api/places/coordinates', async (req, res, next) => {
 app.get('/api/places/details', async (req, res, next) => {
   try {
     const { id, date } = req.query;
-    
+
     // 입력값 검증
     if (!id || typeof id !== 'string') {
       throw new AppError('유효하지 않은 장소 ID입니다.', 400);
     }
-    
+
     let yyMMdd; // 사용할 날짜 변수 (yyMMdd 형식)
     if (date) { // date는 'YYYY-MM-DD'
-        // YYYY-MM-DD -> yyMMdd 변환
-        yyMMdd = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10);
-    } else { // 기본값: 오늘 날짜
-        const now = new Date();
-        const year = now.getFullYear().toString().slice(-2);
-        const month = (now.getMonth() + 1).toString().padStart(2, '0');
-        const day = now.getDate().toString().padStart(2, '0');
-        yyMMdd = year + month + day;
+      // YYYY-MM-DD -> yyMMdd 변환
+      yyMMdd = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10);
     }
     console.log(`[Details] Using date yyMMdd: ${yyMMdd}`);
-    
+
     // 병렬 데이터 로드
     const [place, details, variableData] = await Promise.all([
       cache.getPlace(id),
@@ -338,8 +332,8 @@ app.get('/api/places/details', async (req, res, next) => {
       throw new AppError('장소를 찾을 수 없습니다.', 404);
     }
 
-  try {
-    await updateFrequency(id); // frequencyManager.js의 함수 호출
+    try {
+      await updateFrequency(id); // frequencyManager.js의 함수 호출
       console.log(`[Frequency] Updated frequency for place ID: ${id}`);
     } catch (freqError) {
       console.error(`[Frequency] Failed to update frequency for place ID: ${id}`, freqError);
@@ -373,29 +367,30 @@ app.get('/api/places/details', async (req, res, next) => {
             console.log(`[DEBUG] itemsToProcess length: ${itemsToProcess.length}`);
             const savePromises = []; // 비동기 저장을 위한 Promise 배열
 
-            // 3-3. 받아온 30일치 데이터 처리 및 저장 (비동기 백그라운드)
             for (const item of itemsToProcess) {
-              console.log(`[DEBUG] Inside save loop, processing date: ${item?.baseYmd}`);
-              const itemyyMMdd = item?.baseYmd;
-              if (itemyyMMdd) {
-                // 저장 로직을 Promise 배열에 추가
-                 savePromises.push(
-                    saveKtoCongestionData(itemyyMMdd, id, item) // 수정된 FileUtils 함수 사용
-                      .catch(saveErr => console.error(`[KTO Save] Failed for ${id} on ${itemyyMMdd}:`, saveErr))
-                 );
+              console.log(`[DEBUG] Inside save loop, processing item:`, item);
+              const itemYmd = item?.baseYmd; // KTO 응답은 여전히 YYYYMMDD
+              if (itemYmd && item.cnctrRate !== undefined) {
+                // --- ★★★ 저장 시 yyMMdd 형식으로 변환하여 전달 ★★★ ---
+                const itemyyMMdd = itemYmd.slice(2); // YYYYMMDD -> yyMMdd
+                savePromises.push(
+                  saveKtoCongestionData(itemyyMMdd, id, item) // 변환된 yyMMdd 전달
+                    .catch(saveErr => console.error(`[KTO Save] Failed for ${id} on ${itemyyMMdd}:`, saveErr))
+                );
+                // --- ★★★ ---
 
-                // 프론트가 요청한 날짜(yyMMdd)의 데이터 찾기
-                if (itemyyMMdd === yyMMdd && item.cnctrRate !== undefined) {
+                // 프론트가 요청한 날짜(yyMMdd)와 비교
+                if (itemyyMMdd === yyMMdd) { // 비교 대상도 yyMMdd
                   const rate = parseFloat(item.cnctrRate);
                   ktoCongestionRate = isNaN(rate) ? null : rate;
                 }
               }
             }
-             // 저장 작업 완료를 기다리지 않음
-             Promise.allSettled(savePromises).then(results => {
-                 const savedCount = results.filter(r => r.status === 'fulfilled').length;
-                 console.log(`[KTO Save] Background save attempts finished for place ${id}. Success: ${savedCount}/${results.length}`);
-             });
+            // 저장 작업 완료를 기다리지 않음
+            Promise.allSettled(savePromises).then(results => {
+              const savedCount = results.filter(r => r.status === 'fulfilled').length;
+              console.log(`[KTO Save] Background save attempts finished for place ${id}. Success: ${savedCount}/${results.length}`);
+            });
 
           } else {
             console.warn(`[KTO API] No items received for ${details.name} (${details.areaCd}/${details.signguCd})`);

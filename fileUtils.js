@@ -58,9 +58,7 @@ class FileUtils {
     let dateStr;
     console.log(`[FileUtils] getVariableData: Using date: ${date}`);
     if (date) { // date는 'YYYY-MM-DD' 형식으로 가정
-        dateStr = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10); // yyMMdd 추출
-    } else { // 기본값: 오늘 날짜
-        dateStr = new Date().toISOString().slice(2, 8); // yyMMdd 추출 (T 포함 안 함)
+        dateStr = date.substring(2, 4) + date.substring(5, 7) + date.substring(8, 10);
     }
     console.log(`[FileUtils] getVariableData: Using dateStr: ${dateStr} for placeId: ${placeId}`);
     return this.readJSON(`data/variable_data/${dateStr}/${placeId}.json`);
