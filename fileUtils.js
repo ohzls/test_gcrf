@@ -1,7 +1,7 @@
 // fileUtils.js
 
 import { Storage } from '@google-cloud/storage';
-import { isNaN } from './utils';
+import { isNaN } from './utils.js';
 
 const storage = new Storage({
   projectId: 'predictourist-api',
