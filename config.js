@@ -16,7 +16,8 @@ export const config = {
       "http://localhost:5173",
       "http://192.168.0.64:5173",
       "https://seoseongwon.gitlab.io",
-      "https://predictourist.com"
+      "https://predictourist.com",
+      "http://apis.data.go.kr/"
     ]
   }
-}; 
+};

@@ -1,6 +1,7 @@
 // fileUtils.js
 
 import { Storage } from '@google-cloud/storage';
+import { isNaN } from './utils';
 
 const storage = new Storage({
   projectId: 'predictourist-api',
@@ -8,58 +9,40 @@ const storage = new Storage({
 const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
 
 class FileUtils {
+  
+  // --- readJSON, writeJSON 메서드는 이전과 동일 (null 반환 로직 유지 권장) ---
   static async readJSON(filePath) {
-    // 로그 추가: 어떤 파일을 읽으려고 시도하는지 확인
     console.log(`[FileUtils] Attempting to read GCS: ${bucket.name}/${filePath}`);
     try {
       const file = bucket.file(filePath);
-
-      // 로그 추가: 파일 존재 여부 확인 시도
-      console.log(`[FileUtils] Checking existence for: ${filePath}`);
       const [exists] = await file.exists();
-      // 로그 추가: 파일 존재 여부 결과
-      console.log(`[FileUtils] File exists check result for ${filePath}: ${exists}`);
-
       if (!exists) {
         console.warn(`[FileUtils] File ${filePath} does not exist in bucket ${bucket.name}`);
-        // 파일이 없을 때 빈 객체 반환 (기존 로직 유지)
-        // 또는 여기서 new Error(`File not found: ${filePath}`) 를 throw하여 상위 catch에서 처리하게 할 수도 있음
-        return {};
+        return null; // 파일 없을 때 null 반환
       }
-
-      // 로그 추가: 파일 다운로드 시도
-      console.log(`[FileUtils] Attempting to download: ${filePath}`);
       const [content] = await file.download();
-      // 로그 추가: 다운로드 성공 및 내용 크기 확인
-      console.log(`[FileUtils] Successfully downloaded ${filePath}. Content length: ${content?.length ?? 'N/A'}`);
-
-      // 로그 추가: JSON 파싱 시도
-      console.log(`[FileUtils] Attempting to parse JSON for: ${filePath}`);
       const jsonData = JSON.parse(content.toString());
-      console.log(`[FileUtils] Successfully parsed JSON for: ${filePath}`); // 파싱 성공 로그 추가
+      console.log(`[FileUtils] Successfully read and parsed JSON for: ${filePath}`);
       return jsonData;
-
     } catch (error) {
-      // 로그 추가: 오류 발생 시 상세 정보 로깅 (파일 경로 포함)
       console.error(`[FileUtils] JSON 파일 로드 실패 (${filePath}):`, error.stack || error);
-      // 오류 시 빈 객체 반환 (기존 로직 유지)
-      return {};
+      return null; // 오류 시 null 반환
     }
   }
 
   static async writeJSON(filePath, data) {
     const fullPath = `${bucket.name}/${filePath}`;
-    console.log(`[FileUtils] Attempting to write GCS: ${fullPath}`); // 쓰기 시도 로그 추가
+    console.log(`[FileUtils] Attempting to write GCS: ${fullPath}`);
     try {
-      const file = bucket.file(filePath); // 파일 객체 생성
-      await file.save(JSON.stringify(data), {
-        contentType: 'application/json', // 콘텐츠 타입 명시
-        // 필요한 경우 다른 옵션 추가 (예: cacheControl)
+      const file = bucket.file(filePath);
+      await file.save(JSON.stringify(data, null, 2), {
+        contentType: 'application/json',
+        resumable: false,
       });
-      console.log(`[FileUtils] Successfully wrote to GCS: ${fullPath}`); // 쓰기 성공 로그 추가
+      console.log(`[FileUtils] Successfully wrote to GCS: ${fullPath}`);
     } catch (error) {
-      console.error(`[FileUtils] JSON 파일 저장 실패 (${filePath}):`, error.stack || error); // 스택 트레이스 로깅
-      throw error; // 쓰기 오류는 상위로 전파
+      console.error(`[FileUtils] JSON 파일 저장 실패 (${filePath}):`, error.stack || error);
+      throw error;
     }
   }
 
@@ -95,11 +78,49 @@ class FileUtils {
     const dateStr = new Date().toISOString().slice(2, 10);
     await this.writeJSON(`data/variable_data/${dateStr}/${placeId}.json`, data);
   }
+  
+  /**
+   * 특정 장소/날짜의 KTO 혼잡도 데이터를 GCS에서 읽어옵니다.
+   * @param {string} YYmmdd - 날짜 (YYMMDD 형식)
+   * @param {string} placeId - 서비스 내부 장소 ID
+   * @returns {Promise<object | null>} 저장된 데이터 객체({ congestionRate: 값 }) 또는 null
+   */
+  static async getKtoCongestionData(YYmmdd, placeId) {
+    // 파일 경로: kto/YYMMDD/{placeId}.json
+    const filePath = `kto/${YYmmdd}/${placeId}.json`;
+    return this.readJSON(filePath);
+  }
+
+  /**
+   * KTO API로부터 받은 특정 날짜의 혼잡도 데이터를 GCS에 저장합니다.
+   * @param {string} YYmmdd - 날짜 (YYMMDD 형식)
+   * @param {string} placeId - 서비스 내부 장소 ID
+   * @param {object} rawItemData - KTO API 응답의 개별 item 객체 (cnctrRate 포함)
+   */
+  static async saveKtoCongestionData(YYmmdd, placeId, rawItemData) {
+    // 파일 경로: kto/YYMMDD/{placeId}.json
+    const filePath = `kto/${YYmmdd}/${placeId}.json`;
+
+    // 저장할 데이터 구성: { congestionRate: 값 }
+    const rate = parseFloat(rawItemData?.cnctrRate);
+    const dataToSave = {
+      congestionRate: isNaN(rate) ? null : rate
+      // 필요하다면 여기에 lastUpdated 타임스탬프 등 추가 가능
+      // lastUpdated: new Date().toISOString()
+    };
+
+    // writeJSON 호출
+    await this.writeJSON(filePath, dataToSave);
+  }
+  // --- ★★★ 추가된 함수 끝 ★★★ ---
 }
 
-// 개별 메서드 export
+// --- 기존 export 방식 유지 ---
+// 개별 메서드 export (필요한 경우 새 함수 추가)
 export const readJSON = FileUtils.readJSON.bind(FileUtils);
 export const writeJSON = FileUtils.writeJSON.bind(FileUtils);
+export const getKtoCongestionData = FileUtils.getKtoCongestionData.bind(FileUtils); // 새 함수 추가
+export const saveKtoCongestionData = FileUtils.saveKtoCongestionData.bind(FileUtils); // 새 함수 추가
 
 // 클래스 export
 export default FileUtils;

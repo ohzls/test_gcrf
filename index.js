@@ -4,9 +4,9 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { Storage } from '@google-cloud/storage';
-import FileUtils from './fileUtils.js';
 import cache from './cache.js';
+import FileUtils, { getKtoCongestionData, saveKtoCongestionData } from './fileUtils.js';
+import { isNaN } from './utils.js';
 import { updateFrequency } from './frequencyManager.js';
 import { updateFrequentPlaces, getFrequentPlaces } from './frequentUpdater.js';
 import { handleError, AppError } from './errorHandler.js';
@@ -38,15 +38,77 @@ app.use('/api/', apiLimiter);
 // 요청 로깅
 app.use(logRequest);
 
-// Cloud Storage 인증 확인
-console.log('Cloud Storage 인증 확인...');
-const storage = new Storage();
-const bucket = storage.bucket('run-sources-predictourist-api-us-central1');
-
 // 기본 경로 추가
 app.get('/', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+
+// --- ★★★ KTO API 직접 호출 헬퍼 함수 (별도 파일 분리 권장) ★★★ ---
+async function fetchKtoApiDirectly(areaCode, sigunguCode, tourismName) {
+  const ktoServiceKey = process.env.PUBLIC_KTO_SERVICE_KEY; // .env 에서 로드
+  if (!ktoServiceKey) {
+    console.error('[KTO Helper] KTO 서비스 키가 환경 변수에 설정되지 않았습니다.');
+    // 실제 운영 시에는 에러를 throw 하거나 기본값을 반환하는 등 정책 필요
+    return null; // 또는 throw new Error(...)
+  }
+
+  const mobileOS = "ETC";
+  const mobileApp = "Predictourist_Backend";
+  const ktoApiBaseUrl = 'http://apis.data.go.kr/B551011/TatsCnctrRateService/tatsCnctrRatedList';
+
+  // 서비스 키는 URL에 직접 포함 (인코딩된 키를 환경 변수에 저장했다고 가정)
+  let ktoApiUrl = `${ktoApiBaseUrl}?serviceKey=${ktoServiceKey}`;
+
+  // 나머지 파라미터들 (requests 라이브러리 대신 직접 인코딩 필요 시 주의)
+  const params = new URLSearchParams({
+      MobileOS: mobileOS,
+      MobileApp: mobileApp,
+      areaCd: areaCode,
+      sigunguCd: sigunguCode,
+      _type: 'json',
+      numOfRows: '1000' // 충분히 큰 값
+  });
+  if (tourismName) {
+    params.append('tAtsNm', tourismName);
+  }
+
+  ktoApiUrl += '&' + params.toString();
+
+  console.log(`[KTO Helper] Calling KTO API: ${ktoApiUrl.replace(ktoServiceKey, 'SERVICE_KEY_HIDDEN')}`); // 로그에는 키 숨김
+
+  try {
+    const response = await fetch(ktoApiUrl, { timeout: 15000 }); // 타임아웃 설정 (15초)
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[KTO Helper] KTO API Error Status: ${response.status}`, errorText);
+      // 오류 발생 시 null 반환 (또는 에러 throw)
+      return null;
+    }
+
+    const data = await response.json();
+
+    // KTO API 결과 코드 확인
+    if (data.response?.header?.resultCode !== '0000') {
+      const resultCode = data.response?.header?.resultCode;
+      const resultMsg = data.response?.header?.resultMsg || 'KTO Unknown Error';
+      console.error(`[KTO Helper] KTO API Business Error: ${resultCode} - ${resultMsg}`);
+      // 데이터 없음(03)은 정상 처리 가능
+      if (resultCode === '03') return null;
+      // 다른 오류는 null 반환 (또는 에러 throw)
+      return null;
+    }
+
+    // 성공 시 body 반환 (items 포함)
+    return data.response?.body;
+
+  } catch (error) {
+    console.error('[KTO Helper] Fetch error:', error);
+    return null; // 네트워크 오류 등 발생 시 null 반환
+  }
+}
+// --- ★★★ KTO API 헬퍼 함수 끝 ★★★ ---
 
 // 캐시 초기화
 console.log('캐시 초기화 시작...');
@@ -250,6 +312,8 @@ app.get('/api/places/details', async (req, res, next) => {
       throw new AppError('유효하지 않은 장소 ID입니다.', 400);
     }
 
+    const YYMMDD = date ? date.replace(/-/g, '') : new Date().toISOString().split('T')[0].replace(/-/g, '');
+
     // 날짜 형식 검증
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       throw new AppError('유효하지 않은 날짜 형식입니다.', 400);
@@ -274,11 +338,72 @@ app.get('/api/places/details', async (req, res, next) => {
       // 빈도수 업데이트 실패는 전체 요청 실패로 간주하지 않음
     }
 
+    let ktoCongestionRate = null; // 최종 반환될 혼잡도 값
+
+    if (details.areaCode && details.sigunguCode) { // 필수 코드 확인
+      try {
+        // 3-1. GCS 캐시에서 KTO 데이터 조회 시도
+        const cachedKtoData = await getKtoCongestionData(YYMMDD, id); // 수정된 FileUtils 함수 사용
+
+        if (cachedKtoData && cachedKtoData.congestionRate !== undefined && cachedKtoData.congestionRate !== null) {
+          console.log(`[KTO Cache] Cache HIT for place ${id} on ${YYMMDD}`);
+          ktoCongestionRate = cachedKtoData.congestionRate;
+        } else {
+          console.log(`[KTO Cache] Cache MISS for place ${id} on ${YYMMDD}. Fetching from KTO API...`);
+          // 3-2. 캐시 없으면 KTO API 호출 (헬퍼 함수 사용)
+          const ktoApiResponse = await fetchKtoApiDirectly(
+            details.areaCode,
+            details.sigunguCode,
+            details.name // tAtsNm으로 사용될 관광지 이름
+          );
+
+          if (ktoApiResponse?.items) {
+            const items = ktoApiResponse.items;
+            const itemsToProcess = Array.isArray(items) ? items : [items];
+            const savePromises = []; // 비동기 저장을 위한 Promise 배열
+
+            // 3-3. 받아온 30일치 데이터 처리 및 저장 (비동기 백그라운드)
+            for (const item of itemsToProcess) {
+              const itemYYMMDD = item?.baseYmd;
+              if (itemYYMMDD) {
+                // 저장 로직을 Promise 배열에 추가
+                 savePromises.push(
+                    saveKtoCongestionData(itemYYMMDD, id, item) // 수정된 FileUtils 함수 사용
+                      .catch(saveErr => console.error(`[KTO Save] Failed for ${id} on ${itemYYMMDD}:`, saveErr))
+                 );
+
+                // 프론트가 요청한 날짜(YYMMDD)의 데이터 찾기
+                if (itemYYMMDD === YYMMDD && item.cnctrRate !== undefined) {
+                  const rate = parseFloat(item.cnctrRate);
+                  ktoCongestionRate = isNaN(rate) ? null : rate;
+                }
+              }
+            }
+             // 저장 작업 완료를 기다리지 않음
+             Promise.allSettled(savePromises).then(results => {
+                 const savedCount = results.filter(r => r.status === 'fulfilled').length;
+                 console.log(`[KTO Save] Background save attempts finished for place ${id}. Success: ${savedCount}/${results.length}`);
+             });
+
+          } else {
+            console.warn(`[KTO API] No items received for ${details.name} (${details.areaCode}/${details.sigunguCode})`);
+          }
+        }
+      } catch (ktoError) {
+        console.error(`[KTO] Error processing KTO data for place ${id}:`, ktoError);
+        // KTO 데이터 처리 중 오류 발생 시에도 null 반환 (선택적)
+        ktoCongestionRate = null;
+      }
+    } else {
+      console.warn(`[KTO] Missing areaCode or sigunguCode for place ${id}. Cannot fetch KTO data.`);
+    }
+
     // 응답 데이터 구조화
     res.json({
       ...details,
       crowd: variableData?.crowd,
-      weather: variableData?.weather
+      weather: variableData?.weather,
+      ktoCongestionRate: ktoCongestionRate // KTO 혼잡도 추가
     });
   } catch (error) {
     next(error);
