@@ -5,7 +5,6 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import cache from './cache.js';
-import { PUBLIC_KTO_SERVICE_KEY } from '$env/static/public';
 import FileUtils, { getKtoCongestionData, saveKtoCongestionData } from './fileUtils.js';
 import { isNaN } from './utils.js';
 import { updateFrequency } from './frequencyManager.js';
@@ -47,7 +46,7 @@ app.get('/', (req, res) => {
 
 // --- ★★★ KTO API 직접 호출 헬퍼 함수 (별도 파일 분리 권장) ★★★ ---
 async function fetchKtoApiDirectly(areaCode, sigunguCode, tourismName) {
-  const ktoServiceKey = PUBLIC_KTO_SERVICE_KEY; // .env 에서 로드
+  const ktoServiceKey = "zXAUUzWGYyqVJ2Sjs5%2FYMAuZSvrLnCVkAXE9mQBT5wYhg9IembK9FDYBwEY42xDZIwHkMHWH%2Bf1sreY1J9Exrw%3D%3D";
   if (!ktoServiceKey) {
     console.error('[KTO Helper] KTO 서비스 키가 환경 변수에 설정되지 않았습니다.');
     // 실제 운영 시에는 에러를 throw 하거나 기본값을 반환하는 등 정책 필요
