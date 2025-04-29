@@ -14,7 +14,7 @@ export const config = {
   cors: {
     origins: [
       "http://localhost:5173",
-      "http://192.168.0.64:5173",
+      "http://192.168.0.59:5173",
       "http://192.168.219.102:5173",
       "https://seoseongwon.gitlab.io",
       "https://predictourist.com",
