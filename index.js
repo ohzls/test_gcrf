@@ -170,10 +170,7 @@ app.get('/api/places/search', async (req, res, next) => {
       const frequentResults = frequentPlaces.filter(place => {
         if (!isValidPlace(place)) return false;
         const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-        const addressMatch = (typeof place.address === 'string')
-          ? place.address.toLowerCase().includes(normalizedQuery)
-          : false;
-        return nameMatch || addressMatch;
+        return nameMatch;
       });
 
       // 자주 찾는 목록에서 결과가 있으면, 해당 결과만 반환 (frequentOnly: true 플래그 포함)
@@ -191,10 +188,7 @@ app.get('/api/places/search', async (req, res, next) => {
     const filteredAll = allPlaces.filter(place => {
       if (!isValidPlace(place)) return false;
       const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-      const addressMatch = (typeof place.address === 'string')
-        ? place.address.toLowerCase().includes(normalizedQuery)
-        : false;
-      return nameMatch || addressMatch;
+      return nameMatch;
     });
 
     // 4-2. 반환할 결과 결정 및 정렬
@@ -212,8 +206,7 @@ app.get('/api/places/search', async (req, res, next) => {
           .filter(place => { // 동일한 필터링 로직 적용
             if (!isValidPlace(place)) return false;
             const nameMatch = place.name.toLowerCase().includes(normalizedQuery);
-            const addressMatch = (typeof place.address === 'string') ? place.address.toLowerCase().includes(normalizedQuery) : false;
-            return nameMatch || addressMatch;
+            return nameMatch;
           })
           .map(place => place.id)
       );
