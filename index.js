@@ -141,7 +141,7 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
     const resp = await fetch(fullUrl, { timeout: 10000 });
     console.log('[KTO Nearby Keyword] fetch 완료');
     const text = await resp.text();
-    console.log('[KTO Nearby Keyword] 응답 text:', text.slice(0, 500)); // 너무 길면 일부만
+    console.log('[KTO Nearby Keyword] 응답 text:', text.slice(0, 500));
     let data;
     try {
       data = JSON.parse(text);
@@ -156,10 +156,23 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
       console.error(`[KTO Nearby Keyword] KTO API Business Error: ${resultCode} - ${resultMsg}`);
       return [];
     }
-    const items = data?.response?.body?.items?.item;
+    const itemsRaw = data?.response?.body?.items;
+    console.log('[KTO Nearby Keyword] itemsRaw:', itemsRaw);
+    let items;
+    if (Array.isArray(itemsRaw?.item)) {
+      items = itemsRaw.item;
+    } else if (itemsRaw?.item) {
+      items = [itemsRaw.item];
+    } else if (itemsRaw === "" || itemsRaw == null) {
+      items = [];
+    } else {
+      items = [];
+    }
+    console.log('[KTO Nearby Keyword] items length:', items.length);
     console.log('[KTO Nearby Keyword] items:', items);
-    if (!items) return [];
-    return Array.isArray(items) ? items : [items];
+    // ↓↓↓ 프론트로 내려가는 값도 로그
+    console.log('[KTO Nearby Keyword] 최종 nearbyAttractions:', items);
+    return items;
   } catch (e) {
     console.error('[KTO Nearby Keyword] API 호출 실패:', e);
     return [];
