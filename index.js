@@ -126,8 +126,8 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
   const params = new URLSearchParams({
     pageNo: '1',
     numOfRows: '10000',
-    MobileOS: 'ETC',
-    MobileApp: 'AppTest',
+    MobileOS: 'WEB',
+    MobileApp: 'Predictourist',
     // baseYM: baseYm,
     baseYm: 202503,
     areaCd: areaCd,
