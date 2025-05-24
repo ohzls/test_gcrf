@@ -12,6 +12,7 @@ import { updateFrequentPlaces, getFrequentPlaces } from './frequentUpdater.js';
 import { handleError, AppError } from './errorHandler.js';
 import { logRequest } from './monitoring.js';
 import { config } from './config.js';
+import fetch from 'node-fetch';
 
 const app = express();
 
@@ -111,6 +112,33 @@ async function fetchKtoApiDirectly(areaCd, signguCd, tourismName) {
   }
 }
 // --- ★★★ KTO API 헬퍼 함수 끝 ★★★ ---
+
+// --- KTO 연관 관광지 API (키워드 기반) 호출 헬퍼 ---
+async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm) {
+  const serviceKey = 'zXAUUzWGYyqVJ2Sjs5%2FYMAuZSvrLnCVkAXE9mQBT5wYhg9IembK9FDYBwEY42xDZIwHkMHWH%2Bf1sreY1J9Exrw%3D%3D';
+  const url = 'https://apis.data.go.kr/B551011/TarRlteTarService1/searchKeyword1';
+  const params = new URLSearchParams({
+    serviceKey,
+    pageNo: '1',
+    numOfRows: '10',
+    MobileOS: 'WEB',
+    MobileApp: 'predictourist',
+    baseYm,
+    tAtsNm,
+    _type: 'json'
+  });
+  const fullUrl = `${url}?${params.toString()}`;
+  try {
+    const resp = await fetch(fullUrl, { timeout: 10000 });
+    const data = await resp.json();
+    const items = data?.response?.body?.items?.item;
+    if (!items) return [];
+    return Array.isArray(items) ? items : [items];
+  } catch (e) {
+    console.error('[KTO Nearby Keyword] API 호출 실패:', e);
+    return [];
+  }
+}
 
 // 캐시 초기화
 console.log('캐시 초기화 시작...');
@@ -398,12 +426,24 @@ app.get('/api/places/details', async (req, res, next) => {
       console.warn(`[KTO] Missing areaCd or signguCd for place ${id}. Cannot fetch KTO data.`);
     }
 
+    const baseYm = (date ? date.replace(/-/g, '').slice(0, 6) : new Date().toISOString().slice(0, 7).replace('-', ''));
+    let nearbyAttractions = [];
+    if (details.name) {
+      nearbyAttractions = await fetchNearbyAttractionsByKeyword(details.name, baseYm);
+    }
+
     // 응답 데이터 구조화
     res.json({
       ...details,
       crowd: variableData?.crowd,
       weather: variableData?.weather,
-      ktoCongestionRate: ktoCongestionRate // KTO 혼잡도 추가
+      ktoCongestionRate: ktoCongestionRate,
+      nearbyAttractions: nearbyAttractions.map(item => ({
+        name: item.rlteTatsNm,
+        category: item.rlteCtgryMclsNm,
+        rank: item.rlteRank,
+        baseYm: item.baseYm
+      }))
     });
   } catch (error) {
     next(error);

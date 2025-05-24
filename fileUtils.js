@@ -110,6 +110,16 @@ class FileUtils {
     // writeJSON 호출
     await this.writeJSON(filePath, dataToSave);
   }
+
+  /**
+   * 연관 관광지(nearbyAttractions) 캐시 파일을 저장한다.
+   * @param {string} placeId - 장소 ID
+   * @param {Array} attractions - 연관 관광지 배열 (name, category, subcategory, rank, baseYm)
+   */
+  static async saveNearbyAttractionsCache(placeId, attractions) {
+    const filePath = `data/nearby_attractions/${placeId}.json`;
+    await this.writeJSON(filePath, attractions);
+  }
   // --- ★★★ 추가된 함수 끝 ★★★ ---
 }
 

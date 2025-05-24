@@ -9,6 +9,8 @@ backend/
 ├── cache.js             # 메모리 캐시 관리
 ├── frequentUpdater.js    # 자주 검색되는 장소 관리
 ├── frequencyManager.js   # 장소 호출 빈도 관리
+├── generateData.js       # 동적 데이터 생성
+├── monitoring.js       # 
 └── data/                # JSON 데이터 파일
     ├── base_places.json
     ├── frequent_places.json
@@ -20,9 +22,38 @@ backend/
     │   └── {YYYYMM}.json
     ├── festival_places/
     │   └── {YYYYMM}.json
-    └── place_details/
-        └── {place_id}.json  # place_id 형식: tg_법정동코드_관광지번호
+    ├── place_details/
+    │   └── {place_id}.json  # place_id 형식: tg_법정동코드_관광지번호
+    └── nearby_attractions/
+        └── {place_id}.json   # ★ 연관 관광지 캐시 파일 (신규)
 ```
+
+## 연관 관광지(nearbyAttractions) 캐시 파일
+
+- **경로:** `data/nearby_attractions/{place_id}.json`
+- **내용:** 해당 관광지의 연관 관광지 리스트를 캐싱
+- **구조 예시:**
+```json
+[
+  {
+    "name": "창덕궁",
+    "category": "관광지",
+    "subcategory": "궁궐",
+    "rank": "1",
+    "baseYm": "202405"
+  },
+  {
+    "name": "인사동",
+    "category": "관광지",
+    "subcategory": "거리",
+    "rank": "2",
+    "baseYm": "202405"
+  }
+]
+```
+- **활용:**
+  - 서버는 실시간 API 호출 실패 시 이 캐시 파일을 우선 조회해 응답에 활용할 수 있음
+  - 주기적으로(예: 1일 1회) 백그라운드에서 갱신 가능
 
 ## API 호출 단계
 
