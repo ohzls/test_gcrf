@@ -128,9 +128,9 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
     numOfRows: '10',
     MobileOS: 'WEB',
     MobileApp: 'predictourist',
-    baseYm,
-    areaCd,
-    signguCd,
+    baseYM: baseYm,
+    areaCd: areaCd,
+    signguCd: signguCd,
     keyword: tAtsNm,
     _type: 'json'
   });
