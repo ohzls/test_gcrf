@@ -435,7 +435,13 @@ app.post('/api/places/update', async (req, res, next) => {
       throw new AppError('유효하지 않은 혼잡도 데이터입니다.', 400);
     }
 
-    if (!weather || typeof weather !== 'string') {
+    // weather를 객체로 검증 (status: string, temperature: number)
+    if (
+      !weather ||
+      typeof weather !== 'object' ||
+      typeof weather.status !== 'string' ||
+      typeof weather.temperature !== 'number'
+    ) {
       throw new AppError('유효하지 않은 날씨 데이터입니다.', 400);
     }
 

@@ -10,6 +10,7 @@ backend/
 ├── frequentUpdater.js    # 자주 검색되는 장소 관리
 ├── frequencyManager.js   # 장소 호출 빈도 관리
 ├── generateData.js       # 동적 데이터 생성
+├── monitoring.js       # 
 └── data/                # JSON 데이터 파일
     ├── base_places.json
     ├── frequent_places.json

@@ -9,20 +9,19 @@ backend/
 ├── cache.js             # 메모리 캐시 관리
 ├── frequentUpdater.js    # 자주 검색되는 장소 관리
 ├── frequencyManager.js   # 장소 호출 빈도 관리
-├── generateData.js       # 동적 데이터 생성
 └── data/                # JSON 데이터 파일
     ├── base_places.json
     ├── frequent_places.json
     ├── frequency.json
     ├── variable_data/
     │   └── {YYMMDD}/
-    │       └── {place_id}.json
+    │       └── {place_id}.json  # place_id 형식: tg_법정동코드_관광지번호
     ├── festivals/
     │   └── {YYYYMM}.json
     ├── festival_places/
     │   └── {YYYYMM}.json
     └── place_details/
-        └── {place_id}.json
+        └── {place_id}.json  # place_id 형식: tg_법정동코드_관광지번호
 ```
 
 ## API 호출 단계
@@ -43,7 +42,7 @@ backend/
 ### 2. 장소 좌표 조회
 - 엔드포인트: `/api/places/coordinates`
 - Query Parameters:
-  - `id`: 장소 ID (필수, string)
+  - `id`: 장소 ID (필수, string, 형식: tg_법정동코드_관광지번호)
 - 반환 데이터: `{ lat: number, lng: number }` 형태의 좌표 객체.
 - 데이터 소스: `place_details/{place_id}.json` 파일 내 `coordinates` 필드.
 - 목적: 지도 표시에 필요한 좌표 정보만 빠르게 로드 (단계별 로딩 2단계).
@@ -51,10 +50,20 @@ backend/
 ### 3. 장소 상세 정보
 - 엔드포인트: `/api/places/details`
 - Query Parameters:
-  - `id`: 장소 ID (필수, string)
+  - `id`: 장소 ID (필수, string, 형식: tg_법정동코드_관광지번호)
   - `date`: 조회할 날짜 (YYYY-MM-DD 형식, string, 기본값: 오늘)
-- 반환 데이터: **해당 장소의 전체 상세 정보.** `place_details/{id}.json`의 모든 정적 정보(**좌표 포함**)와 `variable_data/{YYMMDD}/{id}.json`의 **해당 날짜 변동 정보(시간대별 혼잡도 `crowd.hourly`, 날씨 `weather`)**가 병합되어 반환됩니다.
-- 데이터 소스: `place_details/{place_id}.json`, `variable_data/{YYMMDD}/{place_id}.json`
+- 반환 데이터: **해당 장소의 전체 상세 정보.** `place_details/{id}.json`의 모든 정적 정보(**좌표 포함**)와 `variable_data/{YYMMDD}/{id}.json`의 **해당 날짜 변동 정보(시간대별 혼잡도 `crowd.hourly`, 날씨 `weather`)**가 병합되어 반환됩니다. 또한, KTO(한국관광공사) API의 혼잡도(`ktoCongestionRate`) 필드가 추가됩니다.
+- 예시:
+```json
+{
+  "id": "tg_11110_001",
+  ...
+  "crowd": { "hourly": [..], "lastUpdated": "..." },
+  "weather": { "state": "맑음", "temperature": 23 },
+  "ktoCongestionRate": 75.2
+}
+```
+- 데이터 소스: `place_details/{place_id}.json`, `variable_data/{YYMMDD}/{place_id}.json`, (KTO API)
 - 특징: 병렬 데이터 로드하여 응답 시간 최적화 (단계별 로딩 3단계).
 
 ### 4. 자주 검색되는 장소 목록
@@ -72,13 +81,22 @@ backend/
   ```json
   {
     "crowd": {
-      "hourly": [10, 15, 20, ...], // 24시간 혼잡도 데이터
+      "hourly": [10, 15, 20, ...], // 24시간 혼잡도 데이터 (반드시 24개 숫자)
       "lastUpdated": "2025-04-22T10:00:00.000Z"
     },
-    "weather": "맑음"
+    "weather": {
+      "state: "맑음",
+      "temperature": 28
+    }
   }
   ```
+- 반환 데이터:
+  ```json
+  { "status": "ok" }
+  ```
 - 데이터 소스: `variable_data/{YYMMDD}/{place_id}.json`
+- 특징:
+  - crowd.hourly는 반드시 24개 숫자 배열이어야 하며, weather는 반드시 문자열이어야 함(유효성 검증)
 
 ## 데이터 구조
 
@@ -87,9 +105,10 @@ backend/
 {
   "places": [
     {
-      "id": "1",
+      "id": "tg_11110_001",  // 형식: tg_법정동코드_관광지번호
       "name": "경복궁",
       "address": "서울특별시 종로구 사직로 161",
+      "status": true,
       "averageCrowd": 75
     }
   ]
@@ -99,26 +118,47 @@ backend/
 ### 2. place_details/{place_id}.json
 ```json
 {
-  "id": "1",
+  "id": "tg_11110_001",  // 형식: tg_법정동코드_관광지번호
   "name": "경복궁",
+  "names": ["경복궁"],  // 과거 모든 명칭 추가
   "address": "서울특별시 종로구 사직로 161",
+  "areaCode": 11110,
+  "status": true,
   "description": "조선왕조 제일의 법궁으로, 1395년 태조 이성계가 창건했습니다.",
   "category": "궁궐",
-  "coordinates": {       // ★★★ 좌표 필드 추가 ★★★
+  "coordinates": {
     "lat": 37.579615,
     "lng": 126.977011
   },
   "openingHours": {
-    "weekday": "09:00-17:00",
-    "weekend": "09:00-17:00",
+    "weekday": {
+      "open": 9,
+      "close": 17
+    },
+    "weekend": {
+      "open": 9,
+      "close": 17
+    },
     "exceptions": {
-      "june_august": {
-        "weekday": "09:00-18:30",
-        "weekend": "09:00-18:30"
+      "8": {
+        "weekday": {
+          "open": 9,
+          "close": 17
+        },
+        "weekend": {
+          "open": 9,
+          "close": 17
+        },
       },
-      "november_january": {
-        "weekday": "09:00-17:30",
-        "weekend": "09:00-17:30"
+      "9": {
+        "weekday": {
+          "open": 9,
+          "close": 17
+        },
+        "weekend": {
+          "open": 9,
+          "close": 17
+        },
       }
     },
     "closeDays": [
@@ -146,7 +186,7 @@ backend/
   ],
   "nearbyAttractions": [
     {
-      "id": "2",
+      "id": "tg_11110_002",
       "name": "창덕궁",
       "distance": 0.8
     }
@@ -164,22 +204,22 @@ backend/
     "lastUpdated": "2025-04-22T10:00:00.000Z"
   },
   "weather": {
-    "status": "맑음",
-    "temperature": 23,
+    "state": "맑음",
+    "temperature": 28
   }
 }
 ```
 - 날짜별 폴더와 장소별 파일로 구성된 실시간 데이터
 - 폴더명 형식: YYMMDD (예: 250422)
-- 파일명: 장소 ID (예: 1.json)
-- 각 장소의 혼잡도와 날씨 정보
+- 파일명: 장소 ID (예: tg_11110_001.json)
+- 각 장소의 혼잡도와 날씨 정보 (weather는 `{ state, temperature }` 형태의 객체)
 - 마지막 업데이트 시간 기록
 
 ### 4. frequent_places.json
 ```json
 [
   {
-    "id": "1",
+    "id": "tg_11110_001",
     "name": "경복궁",
     "address": "서울특별시 종로구 사직로 161",
     "averageCrowd": 75
@@ -193,8 +233,8 @@ backend/
 ### 5. frequency.json
 ```json
 {
-  "1": 25,
-  "2": 15
+  "tg_11110_001": 25,
+  "tg_11110_002": 15
 }
 ```
 - 장소별 호출 빈도 기록
@@ -227,7 +267,7 @@ backend/
 ```json
 {
   "f1": {
-    "places": ["1", "2", "3"],
+    "places": ["tg_11110_001", "tg_11110_002"],
     "lastUpdated": "2025-04-22T10:00:00.000Z"
   }
 }
@@ -263,10 +303,6 @@ backend/
 
 ## CORS 설정
 
-- 허용된 출처:
-  - http://localhost:5173
-  - http://192.168.0.64:5173
-  - https://predictourist.github.io
 - 허용된 메서드: GET, POST, OPTIONS
 - 허용된 헤더: Authorization, Content-Type, x-api-key
 - CORS 프리플라이트 캐시: 1시간
