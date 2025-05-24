@@ -129,7 +129,7 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
     MobileOS: 'ETC',
     MobileApp: 'AppTest',
     // baseYM: baseYm,
-    baseYm: 2503,
+    baseYm: 202503,
     areaCd: areaCd,
     signguCd: signguCd,
     keyword: tAtsNm,
