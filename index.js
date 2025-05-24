@@ -139,30 +139,27 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
 
   try {
     const resp = await fetch(fullUrl, { timeout: 10000 });
+    console.log('[KTO Nearby Keyword] fetch 완료');
     const text = await resp.text();
-
-    // 2. JSON 파싱 시도
+    console.log('[KTO Nearby Keyword] 응답 text:', text.slice(0, 500)); // 너무 길면 일부만
     let data;
     try {
       data = JSON.parse(text);
+      console.log('[KTO Nearby Keyword] JSON 파싱 성공');
     } catch (e) {
       console.error('KTO Nearby Keyword API 응답이 JSON이 아님:', text);
       return [];
     }
-
-    // 3. 응답 코드 체크
     if (data.response?.header?.resultCode !== '0000') {
       const resultCode = data.response?.header?.resultCode;
       const resultMsg = data.response?.header?.resultMsg || 'KTO Unknown Error';
       console.error(`[KTO Nearby Keyword] KTO API Business Error: ${resultCode} - ${resultMsg}`);
       return [];
     }
-
-    // 4. 정상 데이터 반환
     const items = data?.response?.body?.items?.item;
+    console.log('[KTO Nearby Keyword] items:', items);
     if (!items) return [];
     return Array.isArray(items) ? items : [items];
-
   } catch (e) {
     console.error('[KTO Nearby Keyword] API 호출 실패:', e);
     return [];
