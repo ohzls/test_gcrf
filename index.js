@@ -118,7 +118,6 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
   const serviceKey = 'zXAUUzWGYyqVJ2Sjs5%2FYMAuZSvrLnCVkAXE9mQBT5wYhg9IembK9FDYBwEY42xDZIwHkMHWH%2Bf1sreY1J9Exrw%3D%3D';
   const url = 'https://apis.data.go.kr/B551011/TarRlteTarService1/searchKeyword1';
   const params = new URLSearchParams({
-    serviceKey,
     pageNo: '1',
     numOfRows: '10',
     MobileOS: 'WEB',
@@ -129,7 +128,8 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
     keyword: tAtsNm,
     _type: 'json'
   });
-  const fullUrl = `${url}?${params.toString()}`;
+  const fullUrl = `${url}?serviceKey=${serviceKey}&${params.toString()}`;
+  console.log('[KTO Nearby Keyword] 요청 URL:', fullUrl);
   try {
     const resp = await fetch(fullUrl, { timeout: 10000 });
     const text = await resp.text();
