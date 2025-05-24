@@ -115,6 +115,12 @@ async function fetchKtoApiDirectly(areaCd, signguCd, tourismName) {
 
 // --- KTO 연관 관광지 API (키워드 기반) 호출 헬퍼 ---
 async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd) {
+  // 1. 필수 파라미터 체크
+  if (!tAtsNm || !baseYm || !areaCd || !signguCd) {
+    console.warn('[KTO Nearby Keyword] 필수 파라미터 누락:', { tAtsNm, baseYm, areaCd, signguCd });
+    return [];
+  }
+
   const serviceKey = 'zXAUUzWGYyqVJ2Sjs5%2FYMAuZSvrLnCVkAXE9mQBT5wYhg9IembK9FDYBwEY42xDZIwHkMHWH%2Bf1sreY1J9Exrw%3D%3D';
   const url = 'https://apis.data.go.kr/B551011/TarRlteTarService1/searchKeyword1';
   const params = new URLSearchParams({
@@ -130,18 +136,33 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
   });
   const fullUrl = `${url}?serviceKey=${serviceKey}&${params.toString()}`;
   console.log('[KTO Nearby Keyword] 요청 URL:', fullUrl);
+
   try {
     const resp = await fetch(fullUrl, { timeout: 10000 });
     const text = await resp.text();
+
+    // 2. JSON 파싱 시도
+    let data;
     try {
-      const data = JSON.parse(text);
-      const items = data?.response?.body?.items?.item;
-      if (!items) return [];
-      return Array.isArray(items) ? items : [items];
+      data = JSON.parse(text);
     } catch (e) {
       console.error('KTO Nearby Keyword API 응답이 JSON이 아님:', text);
-      throw e;
+      return [];
     }
+
+    // 3. 응답 코드 체크
+    if (data.response?.header?.resultCode !== '0000') {
+      const resultCode = data.response?.header?.resultCode;
+      const resultMsg = data.response?.header?.resultMsg || 'KTO Unknown Error';
+      console.error(`[KTO Nearby Keyword] KTO API Business Error: ${resultCode} - ${resultMsg}`);
+      return [];
+    }
+
+    // 4. 정상 데이터 반환
+    const items = data?.response?.body?.items?.item;
+    if (!items) return [];
+    return Array.isArray(items) ? items : [items];
+
   } catch (e) {
     console.error('[KTO Nearby Keyword] API 호출 실패:', e);
     return [];
