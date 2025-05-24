@@ -17,7 +17,7 @@ function isValidPlace(place) {
 }
 
 function validatePlaceData(place) {
-  const requiredFields = ['id', 'name', 'address'];
+  const requiredFields = ['id', 'name'];
   const missingFields = requiredFields.filter(field => !place?.[field]);
   
   return {
