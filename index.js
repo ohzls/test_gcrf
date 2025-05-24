@@ -478,12 +478,28 @@ app.get('/api/places/details', async (req, res, next) => {
       crowd: variableData?.crowd,
       weather: variableData?.weather,
       ktoCongestionRate: ktoCongestionRate,
-      nearbyAttractions: nearbyAttractions.map(item => ({
-        name: item.rlteTatsNm,
-        category: item.rlteCtgryMclsNm,
-        rank: item.rlteRank,
-        baseYm: item.baseYm
-      }))
+      nearbyAttractions: nearbyAttractions.map(item => {
+        // robust 카테고리 매핑
+        let category = item.rlteCtgryMclsNm;
+        if ([
+          '관광지', '문화관광', '역사관광', '기타관광', '쇼핑', '레저스포츠', '랜드마크관광'
+        ].includes(category)) {
+          category = '관광';
+        } else if (category === '음식') {
+          category = '음식';
+        } else if (category === '숙박') {
+          category = '숙박';
+        } else {
+          category = '기타';
+        }
+        return {
+          name: item.rlteTatsNm,
+          category,
+          subcategory: item.rlteCtgrySclsNm,
+          rank: item.rlteRank,
+          baseYm: item.baseYm
+        };
+      })
     });
   } catch (error) {
     next(error);
