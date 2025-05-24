@@ -125,10 +125,11 @@ async function fetchNearbyAttractionsByKeyword(tAtsNm, baseYm, areaCd, signguCd)
   const url = 'https://apis.data.go.kr/B551011/TarRlteTarService1/searchKeyword1';
   const params = new URLSearchParams({
     pageNo: '1',
-    numOfRows: '10',
-    MobileOS: 'WEB',
-    MobileApp: 'predictourist',
-    baseYM: baseYm,
+    numOfRows: '10000',
+    MobileOS: 'ETC',
+    MobileApp: 'AppTest',
+    // baseYM: baseYm,
+    baseYm: 2503,
     areaCd: areaCd,
     signguCd: signguCd,
     keyword: tAtsNm,
