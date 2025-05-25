@@ -200,7 +200,7 @@ setInterval(async () => {
   } catch (error) {
     console.error('자주 검색되는 장소 업데이트 실패:', error);
   }
-}, 5 * 60 * 1000); // 5분마다 업데이트
+}, 24 * 60 * 60 * 1000); // 24시간마다 업데이트
 
 function isValidPlace(place) {
   // 가장 기본적인 검사: place 객체이고 name 속성이 문자열인지 확인

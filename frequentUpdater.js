@@ -64,8 +64,11 @@ const updateFrequentPlaces = measurePerformance(async function updateFrequentPla
       .map(place => ({
         id: place.id,
         name: place.name,
-        address: place.address,
-        averageCrowd: place.averageCrowd
+        province: place.province,
+        district: place.district,
+        status: place.status,
+        areaCd: place.areaCd,
+        signguCd: place.signguCd
       }));
 
     console.log(`${logPrefix} Found ${frequentPlaces.length} frequent places. Writing to ${FREQUENT_FILE}`);
